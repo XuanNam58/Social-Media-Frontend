@@ -22,9 +22,8 @@ const navigate = useNavigate();
         <div>
           <div className="pt-10">
             <img
-              className="w-40"
-              height={"70px"}
-              src="https://cdn.wallpapersafari.com/5/1/RQ4cor.png"
+              className="w-24"
+              src="/Images/image-removebg-preview.png"
               // src="https://i.imgur.com/zqpwkLQ.png"
               alt=""
             />

@@ -24,7 +24,7 @@ const navigate = useNavigate();
             <img
               className="w-40"
               height={"70px"}
-              src="https://cdn.wallpapersafari.com/5/1/RQ4cor.png"
+              src="https://images6.fanpop.com/image/photos/34100000/THE-ROCK-NEW-LOGO-2013-wwe-34140741-828-535.png"
               // src="https://i.imgur.com/zqpwkLQ.png"
               alt=""
             />

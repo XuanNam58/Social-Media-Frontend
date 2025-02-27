@@ -9,7 +9,7 @@ const CommentCard = () => {
 
   return (
     <div>
-      <div className="flex items-cente justify-between py-5">
+      <div className="flex items-center justify-between py-5">
         <div className="flex items-center">
           <div>
             <img

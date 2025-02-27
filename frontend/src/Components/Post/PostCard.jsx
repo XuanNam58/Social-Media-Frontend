@@ -1,14 +1,21 @@
 import React, { useState } from "react";
-import { BsBookmark, BsBookmarkFill, BsEmojiSmile, BsPersonBadge, BsPersonFillGear, BsThreeDots } from "react-icons/bs";
+import {
+  BsBookmark,
+  BsBookmarkFill,
+  BsEmojiSmile,
+  BsThreeDots,
+} from "react-icons/bs";
 import "./PostCard.css";
-import { AiFillAlert, AiFillHeart, AiOutlineHeart } from "react-icons/ai";
+import { AiFillHeart, AiOutlineHeart } from "react-icons/ai";
 import { FaRegComment } from "react-icons/fa";
 import { RiSendPlaneLine } from "react-icons/ri";
 import CommentModal from "../Comment/CommentModal";
+import { useDisclosure } from "@chakra-ui/react";
 const PostCard = () => {
   const [showDropDown, setShowDropDown] = useState(false);
   const [isPostLiked, setIsPostLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const {isOpen, onOpen, onClose} = useDisclosure();
 
   const handleSavePost = () => {
     setIsSaved(!isSaved);
@@ -19,6 +26,10 @@ const PostCard = () => {
   };
   const handleClick = () => {
     setShowDropDown(!showDropDown);
+  };
+
+  const handleOpenCommentModal = () => {
+    onOpen();
   };
   return (
     <div>
@@ -70,11 +81,26 @@ const PostCard = () => {
               />
             )}
 
-            <FaRegComment className="text-xl hover:opacity-50 cursor-pointer" />
+            <FaRegComment
+              onClick={handleOpenCommentModal}
+              className="text-xl hover:opacity-50 cursor-pointer"
+            />
             <RiSendPlaneLine className="text-xl hover:opacity-50 cursor-pointer" />
           </div>
 
-          <div className="cursor-pointer">{isSaved ? <BsBookmarkFill onClick={handleSavePost} className="text-xl hover:opacity-50 cursor-pointer" /> : <BsBookmark onClick={handleSavePost} className="text-xl hover:opacity-50 cursor-pointer" />}</div>
+          <div className="cursor-pointer">
+            {isSaved ? (
+              <BsBookmarkFill
+                onClick={handleSavePost}
+                className="text-xl hover:opacity-50 cursor-pointer"
+              />
+            ) : (
+              <BsBookmark
+                onClick={handleSavePost}
+                className="text-xl hover:opacity-50 cursor-pointer"
+              />
+            )}
+          </div>
         </div>
 
         <div className="w-full py-2 px-5">
@@ -84,13 +110,24 @@ const PostCard = () => {
 
         <div className="border border-t w-full">
           <div className="flex w-full items-center px-5">
-            <BsEmojiSmile/>
-            <input className="commentInput" type="text" placeholder="Add a comment..." />
+            <BsEmojiSmile />
+            <input
+              className="commentInput"
+              type="text"
+              placeholder="Add a comment..."
+            />
           </div>
         </div>
       </div>
 
-      <CommentModal/>
+      <CommentModal
+        handlePostLike={handlePostLike}
+        onClose={onClose}
+        isOpen={isOpen}
+        handleSavePost={handleSavePost}
+        isPostLiked={isPostLiked}
+        isSaved={isSaved}
+      />
     </div>
   );
 };

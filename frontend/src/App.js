@@ -1,5 +1,4 @@
-
-import Router from './Pages/Router/Router';
+import Router from "./Pages/Router/Router";
 
 function App() {
   return (
@@ -8,5 +7,4 @@ function App() {
     </div>
   );
 }
-
 export default App;

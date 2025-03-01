@@ -23,7 +23,7 @@ const navigate = useNavigate();
           <div className="pt-10">
             <img
               className="w-24"
-              src="/Images/image-removebg-preview.png"
+              src="/Images/logo.png"
               // src="https://i.imgur.com/zqpwkLQ.png"
               alt=""
             />

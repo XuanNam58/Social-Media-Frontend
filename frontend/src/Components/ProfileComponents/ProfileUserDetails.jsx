@@ -13,7 +13,7 @@ const ProfileUserDetails = () => {
           />
         </div>
 
-        <div>
+        <div className="space-y-5">
           <div className="flex space-x-10 items-center">
             <p>Professor</p>
             <button>Edit Profile</button>

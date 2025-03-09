@@ -22,9 +22,8 @@ const navigate = useNavigate();
         <div>
           <div className="pt-10">
             <img
-              className="w-40"
-              height={"70px"}
-              src="https://images6.fanpop.com/image/photos/34100000/THE-ROCK-NEW-LOGO-2013-wwe-34140741-828-535.png"
+              className="w-24"
+              src="/Images/logo.png"
               // src="https://i.imgur.com/zqpwkLQ.png"
               alt=""
             />

@@ -33,7 +33,7 @@ const PostCard = () => {
   };
   return (
     <div>
-      <div className="border rounded-md w-full">
+      <div className="border rounded-[30px] w-full">
         <div className="flex justify-between items-center w-full py-4 px-5">
           <div className="flex items-center">
             <img

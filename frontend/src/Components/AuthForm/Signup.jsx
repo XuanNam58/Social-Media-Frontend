@@ -4,12 +4,10 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { signupAction } from "../../Redux/Auth/Action";
 import useShowToast from "../../Redux/useShowToast";
-import { useNavigate } from "react-router-dom";
 
 const Signup = () => {
   const dispatch = useDispatch();
   const showToast = useShowToast();
-  const navigate = useNavigate();
   const { auth } = useSelector((store) => store);
   const [inputs, setInputs] = useState({
     fullName: "",

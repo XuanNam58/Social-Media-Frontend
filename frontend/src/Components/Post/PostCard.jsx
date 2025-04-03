@@ -58,13 +58,27 @@ const PostCard = () => {
             </div>
           </div>
         </div>
+        
+        <div className="px-4 pb-4">
+          <p>
+            <span className="font-semibold">Hello! I'm Luan Le</span>
+          </p>
+        </div>
 
+             
         <div className="w-full">
           <img
             className="w-full"
-            src="https://cdn.pixabay.com/photo/2025/01/08/19/02/border-collie-9319990_1280.jpg"
+            src="https://cdn.pixabay.com/photo/2025/03/20/18/28/sunset-9483600_1280.jpg"
             alt=""
           />
+        </div>
+
+        <div className="w-full">
+          <video className="w-full" controls>
+            <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
         </div>
 
         <div className="flex justify-between items-center w-full px-5 py-4">
@@ -103,10 +117,6 @@ const PostCard = () => {
           </div>
         </div>
 
-        <div className="w-full py-2 px-5">
-          <p>10 likes</p>
-          <p className="opacity-50 py-2 cursor-pointer">view all 10 comments</p>
-        </div>
 
         <div className="border border-t w-full">
           <div className="flex w-full items-center px-5">

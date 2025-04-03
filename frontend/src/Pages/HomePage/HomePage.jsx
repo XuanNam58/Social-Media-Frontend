@@ -2,6 +2,9 @@ import React from "react";
 import StoryCircle from "../../Components/Story/StoryCircle";
 import HomeRight from "../../Components/HomeRight/HomeRight";
 import PostCard from "../../Components/Post/PostCard";
+import PostBox from "../../Components/Box/PostBox";
+import ContactRight from "../../Components/ContactRight/ContactRight";
+
 
 const HomePage = () => {
   return (
@@ -13,14 +16,15 @@ const HomePage = () => {
               <StoryCircle />
             ))}
           </div> */}
-          <div className="space-y-10 w-full mt-10">
-            {[1, 1,1,1,1,1,1].map((item) => (
+          <div className="space-y-10 w-full mt-10 max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200">
+            <PostBox/>        
+            {[1].map((item) => (
               <PostCard />
             ))}
           </div>
         </div>
-        <div className="w-[35%]">
-          <HomeRight />
+        <div className="w-[25%]">
+          <ContactRight />
         </div>
       </div>
     </div>

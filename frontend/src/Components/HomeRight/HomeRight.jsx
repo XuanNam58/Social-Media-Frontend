@@ -25,7 +25,7 @@ const HomeRight = () => {
           </div>
         </div>
           <div className="space-y-5 mt-10">
-            {[1, 1, 1, 1, 1].map((item) => (
+            {[1, 1, 1, 1, 1, 1].map((item) => (
               <SuggestionCard />
             ))}
           </div>

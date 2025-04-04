@@ -80,15 +80,15 @@ const PostCard = ({ post }) => {
         </div>
       )}
 
-        {video.trim() && (
+      {video && (
         <div className="w-full">
           <video className="w-full" controls>
             <source src={video} type="video/mp4" />
-              Your browser does not support the video tag.
+            Your browser does not support the video tag.
           </video>
-
         </div>
       )}
+
 
     
 

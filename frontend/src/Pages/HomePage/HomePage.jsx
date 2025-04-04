@@ -1,6 +1,4 @@
 import React from "react";
-import StoryCircle from "../../Components/Story/StoryCircle";
-import HomeRight from "../../Components/HomeRight/HomeRight";
 import PostCard from "../../Components/Post/PostCard";
 import PostBox from "../../Components/Box/PostBox";
 import ContactRight from "../../Components/ContactRight/ContactRight";

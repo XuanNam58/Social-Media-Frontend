@@ -1,5 +1,5 @@
 import React from "react";
-import { FaVideo, FaPhotoVideo, FaSmile } from "react-icons/fa";
+import { FaPhotoVideo, FaSmile } from "react-icons/fa";
 import PostModal from "./PostModal";
 
 const PostBox = () => {
@@ -24,7 +24,7 @@ const PostBox = () => {
 
       {/* Các nút chức năng */}
       <div className="flex justify-around">
-        <PostModal/>
+        <PostModal />
 
         <button className="flex items-center space-x-2 text-green-500 hover:bg-gray-200 p-2 rounded-lg">
           <FaPhotoVideo />

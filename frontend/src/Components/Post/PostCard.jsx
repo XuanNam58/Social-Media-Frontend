@@ -11,7 +11,11 @@ import { FaRegComment } from "react-icons/fa";
 import { RiSendPlaneLine } from "react-icons/ri";
 import CommentModal from "../Comment/CommentModal";
 import { useDisclosure } from "@chakra-ui/react";
-const PostCard = () => {
+
+const PostCard = ({ post }) => {
+  //post
+  const { username, date, picture, content, video } = post;
+  
   const [showDropDown, setShowDropDown] = useState(false);
   const [isPostLiked, setIsPostLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -38,12 +42,12 @@ const PostCard = () => {
           <div className="flex items-center">
             <img
               className="h-12 w-12 rounded-full"
-              src="https://cdn.pixabay.com/photo/2025/01/09/16/59/forest-9322222_1280.jpg"
+              src="https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_960_720.png"
               alt=""
             />
             <div className="pl-2">
-              <p className="font-semibold text-sm">username</p>
-              <p className="font-thin text-sm">location</p>
+              <p className="font-semibold text-sm">{username}</p>
+              <p className="font-thin text-sm">{date}</p>
             </div>
           </div>
 
@@ -61,25 +65,32 @@ const PostCard = () => {
         
         <div className="px-4 pb-4">
           <p>
-            <span className="font-semibold">Hello! I'm Luan Le</span>
+            <span className="font-semibold">{content}</span>
           </p>
         </div>
-
              
+        {picture.trim() && (
         <div className="w-full">
           <img
             className="w-full"
-            src="https://cdn.pixabay.com/photo/2025/03/20/18/28/sunset-9483600_1280.jpg"
+            src={picture}
             alt=""
           />
-        </div>
 
+        </div>
+      )}
+
+        {video.trim() && (
         <div className="w-full">
           <video className="w-full" controls>
-            <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
-            Your browser does not support the video tag.
+            <source src={video} type="video/mp4" />
+              Your browser does not support the video tag.
           </video>
+
         </div>
+      )}
+
+    
 
         <div className="flex justify-between items-center w-full px-5 py-4">
           <div className="flex items-center space-x-2">

@@ -1,18 +1,14 @@
 import {
-  AiFillCompass,
   AiFillHeart,
   AiFillHome,
   AiFillMessage,
-  AiFillPlusCircle,
-  AiOutlineCompass,
   AiOutlineHeart,
   AiOutlineHome,
   AiOutlineMessage,
-  AiOutlinePlusCircle,
   AiOutlineSearch,
 } from "react-icons/ai";
 import { CgProfile } from "react-icons/cg";
-import { RiVideoFill, RiVideoLine } from "react-icons/ri";
+import { HiOutlineUsers, HiUsers } from "react-icons/hi2";
 
 export const menu = [
   {
@@ -46,9 +42,9 @@ export const menu = [
     activeIcon: <AiFillHeart className="text-2xl mr-5" />,
   },
   {
-    title: "Create",
-    icon: <AiOutlinePlusCircle className="text-2xl mr-5" />,
-    activeIcon: <AiFillPlusCircle className="text-2xl mr-5" />,
+    title: "Friend",
+    icon: <HiOutlineUsers className="text-2xl mr-5" />,
+    activeIcon: <HiUsers className="text-2xl mr-5" />,
   },
   {
     title: "Profile",

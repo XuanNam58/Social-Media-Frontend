@@ -7,6 +7,7 @@ import {
   SIGNUP_FAILURE,
   SIGNUP_REQUEST,
   SIGNUP_SUCCESS,
+  LOGOUT,
 } from "./ActionType";
 
 export const loginAction = (data, showToast) => async (dispatch) => {
@@ -73,4 +74,10 @@ export const signupAction = (data, showToast) => async (dispatch) => {
     dispatch({ type: SIGNUP_FAILURE, payload: error.message})
     showToast("Error", error.message, "error");
   }
+};
+
+export const logoutAction = () => {
+  return {
+    type: LOGOUT,
+  };
 };

@@ -69,7 +69,7 @@ const PostCard = ({ post }) => {
           </p>
         </div>
              
-        {picture.trim() && (
+        {picture && (
         <div className="w-full">
           <img
             className="w-full"

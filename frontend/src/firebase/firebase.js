@@ -14,10 +14,12 @@ const firebaseConfig = {
   measurementId: "G-FR1RWCW32E"
 };
 
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const firestore = getFirestore(app);
 const storage = getStorage(app);
+
 
 export { app, auth, firestore, storage };

@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import HomePage from "../HomePage/HomePage";
 import Profile from "../Profile/Profile";
 import AuthPage from "../AuthPage/AuthPage";
+import ChatInterface from "../../Components/Message/ChatInterface";
 
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem("token");
@@ -40,6 +41,7 @@ const Router = () => {
             ></Route>
             <Route path="/:username" element={<Profile />}></Route>
             <Route path="/auth" element={<AuthPage />}></Route>
+            <Route path="/message" element={<ChatInterface />}></Route>
           </Routes>
         </div>
       </div>

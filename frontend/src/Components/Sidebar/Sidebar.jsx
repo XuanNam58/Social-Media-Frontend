@@ -15,6 +15,8 @@ const Sidebar = () => {
       navigate(`/${user.reqUser.username}`);
     } else if (title === "Home") {
       navigate("/");
+    } else if (title === "Message") {
+      navigate("/message");
     }
   };
   return (
@@ -55,8 +57,6 @@ const Sidebar = () => {
         </div>
       </div>
     </div>
-
-    
   );
 };
 

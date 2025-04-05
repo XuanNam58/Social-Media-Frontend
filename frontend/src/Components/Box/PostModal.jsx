@@ -80,41 +80,49 @@ export default function PostModal() {
 
   const handlePost = async () => {
     if (!content.trim()) return;
-
+  
     if (media) {
       setUploading(true);
-
+  
       try {
         // Upload file lên Appwrite Storage
         const response = await storage.createFile("67f02a57000c66380420", "unique()", media);
         const fileID = response.$id;
-
+  
         // Lấy URL của file đã upload
         const fileURL = storage.getFileView("67f02a57000c66380420", fileID);
         console.log(fileID);
-        setMediaURL(fileURL);
-
+  
         setUploading(false);
-        submitPost(fileURL);
+        submitPost(fileURL, media.type); // Truyền thêm media.type để xác định loại file
       } catch (error) {
         console.error("Upload failed:", error);
         setUploading(false);
       }
     } else {
-      submitPost("");
+      submitPost(null, null);
     }
   };
+  
 
-  const submitPost = async (uploadedMediaURL) => {
+  const submitPost = async (uploadedMediaURL, mediaType) => {
     const newPost = {
       username,
       content,
-      picture: uploadedMediaURL,
-      date: getCurrentDate()
+      date: getCurrentDate(),
     };
-
+  
+    // Chỉ thêm `picture` hoặc `video` nếu có file upload
+    if (uploadedMediaURL) {
+      if (mediaType.startsWith("image")) {
+        newPost.picture = uploadedMediaURL;
+      } else if (mediaType.startsWith("video")) {
+        newPost.video = uploadedMediaURL;
+      }
+    }
+  
     console.log(newPost);
-
+  
     try {
       // Gửi POST request đến backend
       const response = await fetch("http://localhost:9000/api/posts/create", {
@@ -124,7 +132,7 @@ export default function PostModal() {
         },
         body: JSON.stringify(newPost) // Chuyển đổi newPost thành JSON
       });
-
+  
       if (response.ok) {
         const responseData = await response.json();
         console.log("Post created successfully:", responseData);
@@ -132,14 +140,14 @@ export default function PostModal() {
         console.error("Error creating post:", response.statusText);
       }
     } catch (error) {
-      console.error("Request failed:", error);
+      console.error("Request failed:", error.message);
     }
-
+  
     setIsOpen(false);
     setContent("");
     setMedia(null);
-    setMediaURL("");
-};
+  };
+  
 
   return (
     <div>

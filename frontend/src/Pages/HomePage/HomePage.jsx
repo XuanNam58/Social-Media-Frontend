@@ -15,7 +15,6 @@ const HomePage = () => {
     const user = auth.currentUser;
     if (user) {
       const token = await user.getIdToken();
-      console.log("Token:", token);
       return token;
     } else {
       console.error("User chưa đăng nhập!");

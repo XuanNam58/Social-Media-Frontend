@@ -14,7 +14,7 @@ import { useDisclosure } from "@chakra-ui/react";
 
 const PostCard = ({ post }) => {
   //post
-  const { username, date, picture, content, video } = post;
+  const { id, username, date, picture, content, video } = post;
   
   const [showDropDown, setShowDropDown] = useState(false);
   const [isPostLiked, setIsPostLiked] = useState(false);
@@ -142,6 +142,7 @@ const PostCard = ({ post }) => {
       </div>
 
       <CommentModal
+        post={post}
         handlePostLike={handlePostLike}
         onClose={onClose}
         isOpen={isOpen}

@@ -177,7 +177,7 @@ export default function PostModal() {
           alt="Avatar"
         />
         <div>
-          <p className="font-semibold">Luân Lê</p>
+          <p className="font-semibold">{username}</p>
           <button className="text-gray-500 text-xs">public</button>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   BsBookmark,
   BsBookmarkFill,
@@ -14,7 +14,7 @@ import { useDisclosure } from "@chakra-ui/react";
 
 const PostCard = ({ post }) => {
   //post
-  const { id, username, date, picture, content, video } = post;
+  const { id, username, date, picture, content, video, numberOfLike } = post;
   
   const [showDropDown, setShowDropDown] = useState(false);
   const [isPostLiked, setIsPostLiked] = useState(false);
@@ -25,9 +25,50 @@ const PostCard = ({ post }) => {
     setIsSaved(!isSaved);
   };
 
-  const handlePostLike = () => {
-    setIsPostLiked(!isPostLiked);
+  useEffect(() => {
+    const checkIfLiked = async () => {
+      try {
+        const response = await fetch(
+          `http://localhost:9000/api/likes/check?username=${username}&postID=${id}`
+        );
+        const data = await response.json();
+        if (data.liked) {
+          setIsPostLiked(true);
+        }
+      } catch (err) {
+        console.error("Error checking like status", err);
+      }
+    };
+  
+    checkIfLiked();
+  }, [username, id]);
+
+  const handlePostLike = async () => {
+    const like = {
+      postID: id,
+      username: username,
+    };
+  
+    try {
+      const response = await fetch("http://localhost:9000/api/likes/likes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(like),
+      });
+  
+      if (!response.ok) {
+        throw new Error("Lỗi khi gọi API like");
+      }
+  
+      // Nếu request thành công → đổi trạng thái liked
+      setIsPostLiked(!isPostLiked);
+    } catch (error) {
+      console.error("Lỗi khi xử lý like:", error.message);
+    }
   };
+  
   const handleClick = () => {
     setShowDropDown(!showDropDown);
   };

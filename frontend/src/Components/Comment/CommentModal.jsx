@@ -32,7 +32,9 @@ const CommentModal = ({
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState("");
   const [comments, setComments] = useState([]);
+  const [userPost, setUserPost] = useState({});
 
+  // lay ngay hien tai
   const getCurrentDate = () => {
     const today = new Date();
     const day = String(today.getDate()).padStart(2, "0");
@@ -41,6 +43,7 @@ const CommentModal = ({
     return `${day}-${month}-${year}`;
   };
 
+  //lay token
   const getToken = async () => {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -86,6 +89,7 @@ const CommentModal = ({
     setPage((prevPage) => prevPage + 1);
   };
 
+  //lay thong tin user
   useEffect(() => {
     const fetchUser = async () => {
       const token = await getToken();
@@ -114,6 +118,36 @@ const CommentModal = ({
     setNewComment("");
   }, [post.id]);
 
+//lay userPost
+  useEffect(() => {
+    const findUsePost = async () => {
+      const token = await getToken();
+      if (!post.username|| !token) return; // ⚠️ tránh gọi khi chưa có username
+  
+      try {
+        const response = await fetch(
+          `http://localhost:8080/api/users/get-user-by-username/${post.username}`,{
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          },
+          
+        );
+        const data = await response.json();
+        
+          setUserPost(data);
+      
+      } catch (err) {
+        console.error("Error find userPost", err);
+      }
+    };
+  
+    findUsePost();
+  }, [post.id]); // 
+
+  //lay comment
   useEffect(() => {
     if (!username) return;
     const fetchComments = async () => {
@@ -144,7 +178,7 @@ const CommentModal = ({
               <div className="flex items-center">
                 <img
                   className="h-12 w-12 rounded-full"
-                  src="https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_960_720.png"
+                  src={userPost.profilePicURL}
                   alt=""
                 />
                 <div className="pl-2">
@@ -231,11 +265,7 @@ const CommentModal = ({
                 </div>
               )}
 
-              {loading && (
-                <div className="text-center mt-5">
-                  <p className="text-gray-500">loading comments...</p>
-                </div>
-              )}
+            
 
               <div className="absolute bottom-0 w-[90%]">
                 <div className="flex items-center w-full">

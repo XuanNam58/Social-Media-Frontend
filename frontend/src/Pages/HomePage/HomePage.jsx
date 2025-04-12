@@ -77,7 +77,7 @@ const HomePage = () => {
           <div className="space-y-10 w-full mt-10 max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200">
             <PostBox />
             {posts.length > 0 ? (
-              posts.map((post, index) => <PostCard key={index} post={post} />)
+              posts.map((post, index) => <PostCard key={index} post={post} usernameIndex ={username}/>)
             ) : (
               <p className="text-center text-gray-500">Đang tải bài viết...</p>
             )}

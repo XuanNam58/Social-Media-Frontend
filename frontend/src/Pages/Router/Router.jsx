@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import HomePage from "../HomePage/HomePage";
 import Profile from "../Profile/Profile";
 import AuthPage from "../AuthPage/AuthPage";
+import FriendPage from "../FriendPage/FriendPage";
 
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem("token");
@@ -12,6 +13,12 @@ const ProtectedRoute = ({ children }) => {
   }
   return children;
 };
+
+// Component wrapper để giảm sự lặp lại của code
+const ProtectedRouteWrapper = ({ children }) => (
+  <ProtectedRoute>{children}</ProtectedRoute>
+);
+
 const Router = () => {
   const location = useLocation();
   const isAuthPage = location.pathname === "/auth";
@@ -33,13 +40,30 @@ const Router = () => {
             <Route
               path="/"
               element={
-                <ProtectedRoute>
+                <ProtectedRouteWrapper>
                   <HomePage />
-                </ProtectedRoute>
+                </ProtectedRouteWrapper>
               }
-            ></Route>
-            <Route path="/:username" element={<Profile />}></Route>
-            <Route path="/auth" element={<AuthPage />}></Route>
+            />
+            <Route
+              path="/:username"
+              element={
+                <ProtectedRouteWrapper>
+                  <Profile />
+                </ProtectedRouteWrapper>
+              }
+            />
+
+            <Route
+              path="/friend"
+              element={
+                <ProtectedRouteWrapper>
+                  <FriendPage />
+                </ProtectedRouteWrapper>
+              }
+            />
+
+            <Route path="/auth" element={<AuthPage />} />
           </Routes>
         </div>
       </div>

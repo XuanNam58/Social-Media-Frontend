@@ -60,7 +60,7 @@ const Login = () => {
 
   useEffect(() => {
     if (user.reqUser?.username) {
-      navigate(`/${user.reqUser?.username}`);
+      navigate('/');
     }
   }, [token, user.reqUser]);
 

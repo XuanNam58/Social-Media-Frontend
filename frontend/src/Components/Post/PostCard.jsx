@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getAuth } from "firebase/auth";
 import {
   BsBookmark,
   BsBookmarkFill,
@@ -11,25 +12,67 @@ import { FaRegComment } from "react-icons/fa";
 import { RiSendPlaneLine } from "react-icons/ri";
 import CommentModal from "../Comment/CommentModal";
 import { useDisclosure } from "@chakra-ui/react";
+  
 
-const PostCard = ({ post }) => {
+
+
+
+const PostCard = ({ post }, usernameIndex) => {
   //post
   const { id, username, date, picture, content, video, numberOfLike } = post;
-  
+  const [userIndex, setUserIndex] = useState({}); // Tên người dùng
   const [showDropDown, setShowDropDown] = useState(false);
   const [isPostLiked, setIsPostLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const {isOpen, onOpen, onClose} = useDisclosure();
+  const [userPost, setUserPost] = useState({});
+  //lay token
+const getToken = async () => {
+  const auth = getAuth();
+  const user = auth.currentUser;
+  if (user) {
+    const token = await user.getIdToken();
+    return token;
+  } else {
+    console.error("User chưa đăng nhập!");
+    return null;
+  }
+};
 
-  const handleSavePost = () => {
+useEffect(() => {
+  // Lấy thông tin user khi component mount
+  const fetchUser = async () => {
+    const token = await getToken();
+    if (!token) return;
+    try {
+      const response = await fetch("http://localhost:8080/api/users/req", {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      const dataUser = await response.json();
+      setUserIndex(dataUser);
+    } catch (error) {
+      console.error("Lỗi khi lấy thông tin user:", error);
+    }
+  };
+  fetchUser();
+}, []); // Chạy khi component mount
+  
+const handleSavePost = () => {
     setIsSaved(!isSaved);
   };
 
+  // kiem tra liked 
   useEffect(() => {
     const checkIfLiked = async () => {
+      if (!userIndex.username) return; // ⚠️ tránh gọi khi chưa có username
+  
       try {
         const response = await fetch(
-          `http://localhost:9000/api/likes/check?username=${username}&postID=${id}`
+          `http://localhost:9000/api/likes/check?username=${userIndex.username}&postID=${id}`
         );
         const data = await response.json();
         if (data.liked) {
@@ -41,12 +84,42 @@ const PostCard = ({ post }) => {
     };
   
     checkIfLiked();
-  }, [username, id]);
+  }, [userIndex.username, id]); // 
+  
+  //lay userPost
+  useEffect(() => {
+    const findUsePost = async () => {
+      const token = await getToken();
+      if (!username || !token) return; // ⚠️ tránh gọi khi chưa có username
+  
+      try {
+        const response = await fetch(
+          `http://localhost:8080/api/users/get-user-by-username/${username}`,{
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          },
+          
+        );
+        const data = await response.json();
+        
+          setUserPost(data);
+      
+      } catch (err) {
+        console.error("Error find userPost", err);
+      }
+    };
+  
+    findUsePost();
+  }, [id]); // 
 
+  //like
   const handlePostLike = async () => {
     const like = {
       postID: id,
-      username: username,
+      username: userIndex.username,
     };
   
     try {
@@ -83,7 +156,7 @@ const PostCard = ({ post }) => {
           <div className="flex items-center">
             <img
               className="h-12 w-12 rounded-full"
-              src="https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_960_720.png"
+              src= {userPost.profilePicURL}
               alt=""
             />
             <div className="pl-2">

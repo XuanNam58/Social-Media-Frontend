@@ -15,6 +15,8 @@ import {
   LogOut,
   Users,
 } from "lucide-react";
+import { getAuth, signOut } from "firebase/auth";
+import { auth } from "../../firebase/firebase";
 
 const Sidebar = () => {
   const [activeTab, setActiveTab] = useState();
@@ -22,7 +24,9 @@ const Sidebar = () => {
   const { user } = useSelector((store) => store);
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const token = localStorage.getItem("token");
+
+  const auth = getAuth();
+  const token = auth.currentUser.getIdToken();
 
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -66,31 +70,37 @@ const Sidebar = () => {
     } else if (title === "Home") {
       navigate("/");
     } else if (title === "Friend") {
-      navigate("/friend")
+      navigate("/friend");
     }
   };
 
   // Close search when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      const searchElement = document.getElementById('search-panel');
-      const searchIcon = document.getElementById('search-icon');
-      if (showSearch && searchElement && !searchElement.contains(event.target) && !searchIcon.contains(event.target)) {
+      const searchElement = document.getElementById("search-panel");
+      const searchIcon = document.getElementById("search-icon");
+      if (
+        showSearch &&
+        searchElement &&
+        !searchElement.contains(event.target) &&
+        !searchIcon.contains(event.target)
+      ) {
         setShowSearch(false);
       }
     };
 
     if (showSearch) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showSearch]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
+  const handleLogout = () => async () => {
+    // localStorage.removeItem("token");
+    await signOut(auth);
     dispatch(logoutAction());
     window.location.href = "/auth";
   };
@@ -102,8 +112,16 @@ const Sidebar = () => {
   return (
     <>
       {showSearch && <Search onClose={handleCloseSearch} />}
-      <div className={`sticky top-0 h-[100vh] ${showSearch ? 'w-20' : 'w-[250px]'} transition-all duration-200`}>
-        <div className={`flex flex-col justify-between h-full ${showSearch ? 'px-2' : 'px-10'}`}>
+      <div
+        className={`sticky top-0 h-[100vh] ${
+          showSearch ? "w-20" : "w-[250px]"
+        } transition-all duration-200`}
+      >
+        <div
+          className={`flex flex-col justify-between h-full ${
+            showSearch ? "px-2" : "px-10"
+          }`}
+        >
           <div>
             <div className="pt-10">
               <img
@@ -140,7 +158,10 @@ const Sidebar = () => {
           </div>
 
           {!showSearch && (
-            <div className="flex items-center cursor-pointer pb-10" onClick={toggleDropdown}>
+            <div
+              className="flex items-center cursor-pointer pb-10"
+              onClick={toggleDropdown}
+            >
               <div className="w-12 flex justify-center">
                 <IoReorderThreeOutline className="text-2xl" />
               </div>
@@ -150,7 +171,10 @@ const Sidebar = () => {
 
           {/* Dropdown menu */}
           {isOpen && !showSearch && (
-            <div ref={dropdownRef} className="absolute bottom-20 left-0 w-64 bg-white rounded-lg shadow-lg overflow-hidden z-50 ml-5">
+            <div
+              ref={dropdownRef}
+              className="absolute bottom-20 left-0 w-64 bg-white rounded-lg shadow-lg overflow-hidden z-50 ml-5"
+            >
               <div className="py-2">
                 <button className="w-full px-4 py-3 flex items-center gap-3 text-gray-700 hover:bg-gray-100 text-left">
                   <Settings className="w-5 h-5" />
@@ -186,8 +210,10 @@ const Sidebar = () => {
               <div className="h-px bg-gray-200"></div>
 
               <div className="py-2">
-                <button onClick={handleLogout}
-                 className="w-full px-4 py-3 flex items-center gap-3 text-gray-700 hover:bg-gray-100 text-left">
+                <button
+                  onClick={handleLogout}
+                  className="w-full px-4 py-3 flex items-center gap-3 text-gray-700 hover:bg-gray-100 text-left"
+                >
                   <LogOut className="w-5 h-5" />
                   <span>Log out</span>
                 </button>

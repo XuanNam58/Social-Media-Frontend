@@ -8,12 +8,14 @@ import {
   getMutualFollowIdsAction,
 } from "../../Redux/User/Action";
 import { useNavigate } from "react-router-dom";
+import { getAuth } from "firebase/auth";
 
 export default function FriendPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const friendsPerPage = 5;
-  const token = localStorage.getItem("token");
+  const auth = getAuth();
+  const token = auth.currentUser.getIdToken();
   const dispatch = useDispatch();
   const { user } = useSelector((store) => store);
   const navigate = useNavigate();

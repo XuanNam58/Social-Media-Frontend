@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { searchUserAction } from "../../Redux/User/Action";
 import useShowToast from "../../Redux/useShowToast";
 import { useNavigate } from "react-router-dom";
+import { getAuth } from "firebase/auth";
 
 const Search = ({ onClose }) => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -31,7 +32,8 @@ const Search = ({ onClose }) => {
   ]);
   const dispatch = useDispatch();
   const showToast = useShowToast();
-  const token = localStorage.getItem("token");
+  const auth = getAuth();
+  const token = auth.currentUser.getIdToken();
   const { user } = useSelector((store) => store);
   const navigate = useNavigate();
 
@@ -112,8 +114,8 @@ const Search = ({ onClose }) => {
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 bg-gray-200 rounded-full">
                     {user.profilePicURL && (
-                      <img 
-                        src={user.profilePicURL} 
+                      <img
+                        src={user.profilePicURL}
                         alt={user.username}
                         className="w-full h-full rounded-full object-cover"
                       />

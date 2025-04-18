@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { loginAction } from "../../Redux/Auth/Action";
 import useShowToast from "../../Redux/useShowToast";
 import { getUserProfileAction } from "../../Redux/User/Action";
+import { getAuth } from "firebase/auth";
 
 const Login = () => {
   const [inputs, setInputs] = useState({
@@ -19,7 +20,9 @@ const Login = () => {
   const showToast = useShowToast();
   const { user } = useSelector((store) => store);
   const { auth } = useSelector((store) => store);
-  const token = localStorage.getItem("token");
+
+  const authFb = getAuth();
+  const token = authFb.currentUser.getIdToken();
 
   const validateEmail = (email) => {
     return String(email)

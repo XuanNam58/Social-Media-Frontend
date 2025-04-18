@@ -3,6 +3,7 @@ import FollowListModal from "./FollowListModal";
 import { useDisclosure } from "@chakra-ui/react";
 import { useDispatch, useSelector } from "react-redux";
 import { getUsersByUserIds } from "../../Redux/User/Action";
+import { getAuth } from "firebase/auth";
 const profile = {
   username: "ganknow",
   posts: 501,
@@ -61,7 +62,8 @@ const ProfileUserDetailChange = ({
 }) => {
   const [localIsFollowing, setLocalIsFollowing] = useState(isFollowing);
   const dispatch = useDispatch();
-  const token = localStorage.getItem("token");
+  const auth = getAuth();
+  const token = auth.currentUser.getIdToken();
   const { user } = useSelector((store) => store);
 
   useEffect(() => {
@@ -87,8 +89,12 @@ const ProfileUserDetailChange = ({
   };
 
   // Đảm bảo followers và following là mảng
-  const followers = Array.isArray(userParam.followers) ? userParam.followers : [];
-  const following = Array.isArray(userParam.following) ? userParam.following : [];
+  const followers = Array.isArray(userParam.followers)
+    ? userParam.followers
+    : [];
+  const following = Array.isArray(userParam.following)
+    ? userParam.following
+    : [];
 
   // Kiểm tra và sử dụng profilePicURL hoặc profilePicUrl
   const profilePicUrl =

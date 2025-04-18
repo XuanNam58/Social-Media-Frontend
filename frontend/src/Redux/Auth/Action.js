@@ -42,7 +42,7 @@ export const loginAction = (data, showToast) => async (dispatch) => {
 
     console.log("login", token);
 
-    localStorage.setItem("token", token);
+    // localStorage.setItem("token", token);
     dispatch({ type: LOGIN_SUCCESS, payload: token });
   } catch (error) {
     dispatch({ type: LOGIN_FAILURE, payload: error.message });

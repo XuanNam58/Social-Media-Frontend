@@ -16,8 +16,8 @@ const Profile = () => {
   const { username } = useParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const token = localStorage.getItem("token");
   const auth = getAuth();
+  const token = auth.currentUser.getIdToken();
   const dispatch = useDispatch();
   const { user } = useSelector((store) => store);
 

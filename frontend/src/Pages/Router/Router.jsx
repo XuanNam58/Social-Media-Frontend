@@ -1,16 +1,29 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import HomePage from "../HomePage/HomePage";
 import Profile from "../Profile/Profile";
 import AuthPage from "../AuthPage/AuthPage";
 import FriendPage from "../FriendPage/FriendPage";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem("token");
-  if (!token) {
-    return <Navigate to="/auth" replace />;
-  }
+  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsAuthenticated(!!user); // Nếu user là null thì false, nếu có user thì true, !!user sẽ chuyển đổi giá trị này thành một giá trị boolean.
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  if (loading) return <div>Loading...</div>;
+
+  if (!isAuthenticated) return <Navigate to="/auth" replace />;
+
   return children;
 };
 
@@ -22,7 +35,8 @@ const ProtectedRouteWrapper = ({ children }) => (
 const Router = () => {
   const location = useLocation();
   const isAuthPage = location.pathname === "/auth";
-  const token = localStorage.getItem("token");
+  const auth = getAuth();
+  const token = auth.currentUser.getIdToken();
 
   if (token && isAuthPage) {
     return <Navigate to="/" replace />;

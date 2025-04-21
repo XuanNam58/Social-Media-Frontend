@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { X, ArrowLeft } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { searchUserAction } from "../../Redux/User/Action";
@@ -32,8 +32,20 @@ const Search = ({ onClose }) => {
   ]);
   const dispatch = useDispatch();
   const showToast = useShowToast();
+
+  // Get token
   const auth = getAuth();
-  const token = auth.currentUser.getIdToken();
+  const [token, setToken] = useState(null);
+  useEffect(() => {
+    const getToken = async () => {
+      if (auth.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        setToken(token);
+      }
+    };
+    getToken();
+  }, [auth.currentUser]);
+
   const { user } = useSelector((store) => store);
   const navigate = useNavigate();
 

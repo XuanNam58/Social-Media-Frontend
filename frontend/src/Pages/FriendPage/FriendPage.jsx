@@ -14,8 +14,22 @@ export default function FriendPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const friendsPerPage = 5;
+
+  // Get token
   const auth = getAuth();
-  const token = auth.currentUser.getIdToken();
+  const [token, setToken] = useState(null);
+  useEffect(() => {
+    const getToken = async () => {
+      if (auth.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        setToken(token);
+      } else {
+        setToken(null);
+      }
+    };
+    getToken();
+  }, [auth.currentUser]);
+
   const dispatch = useDispatch();
   const { user } = useSelector((store) => store);
   const navigate = useNavigate();
@@ -25,7 +39,7 @@ export default function FriendPage() {
   };
 
   useEffect(() => {
-    if (user.reqUser?.followers && user.reqUser?.following) {
+    if (token && user.reqUser?.followers && user.reqUser?.following) {
       dispatch(
         getMutualFollowIdsAction({
           followers: user.reqUser.followers,

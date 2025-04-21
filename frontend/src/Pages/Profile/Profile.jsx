@@ -22,22 +22,17 @@ const Profile = () => {
   const auth = getAuth();
   const [token, setToken] = useState(null);
   useEffect(() => {
-    const getToken = async () => {
-      if (auth.currentUser) {
-        const token = await auth.currentUser.getIdToken();
-        setToken(token);
-      }
-    };
-    getToken();
-  }, [auth.currentUser]);
-
-
-  useEffect(() => {
     const fetchUserData = async () => {
       try {
         setLoading(true);
         setError(null);
 
+        // Lấy token
+        let currentToken = null;
+        if (auth.currentUser) {
+          currentToken = await auth.currentUser.getIdToken();
+          setToken(currentToken);
+        }
 
         // Nếu không có username trong URL hoặc username trùng với người dùng hiện tại
         if (
@@ -45,12 +40,12 @@ const Profile = () => {
           (user.reqUser?.username && username === user.reqUser.username)
         ) {
           console.log("Lấy thông tin người dùng hiện tại");
-          await dispatch(getUserProfileAction(token));
+          await dispatch(getUserProfileAction(currentToken));
         } else {
           // Lấy thông tin người dùng khác
           console.log("Lấy thông tin người dùng khác:", username);
-          await dispatch(getUserByUsernameAction(username, token));
-          await dispatch(getUidByUsernameAction(username, token));
+          await dispatch(getUserByUsernameAction(username, currentToken));
+          await dispatch(getUidByUsernameAction(username, currentToken));
         }
 
         setLoading(false);
@@ -62,7 +57,7 @@ const Profile = () => {
     };
 
     fetchUserData();
-  }, [username, auth.currentUser, dispatch, token, user.reqUser?.username]);
+  }, [auth.currentUser]);
 
     // Xác định người dùng cần hiển thị
     const profileUser =

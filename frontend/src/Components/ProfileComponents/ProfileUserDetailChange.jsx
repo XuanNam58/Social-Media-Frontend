@@ -62,9 +62,10 @@ const ProfileUserDetailChange = ({
 }) => {
   const [localIsFollowing, setLocalIsFollowing] = useState(isFollowing);
   const dispatch = useDispatch();
-  // Get token
   const auth = getAuth();
   const [token, setToken] = useState(null);
+  const user = useSelector((store) => store.user);
+
   useEffect(() => {
     const getToken = async () => {
       if (auth.currentUser) {
@@ -74,7 +75,6 @@ const ProfileUserDetailChange = ({
     };
     getToken();
   }, [auth.currentUser]);
-  const { user } = useSelector((store) => store);
 
   useEffect(() => {
     setLocalIsFollowing(isFollowing);

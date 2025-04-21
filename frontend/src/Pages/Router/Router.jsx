@@ -10,20 +10,23 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 const ProtectedRoute = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const auth = getAuth();
 
   useEffect(() => {
-    const auth = getAuth();
+    let mounted = true;
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setIsAuthenticated(!!user); // Nếu user là null thì false, nếu có user thì true, !!user sẽ chuyển đổi giá trị này thành một giá trị boolean.
+      if (!mounted) return;
+      setIsAuthenticated(!!user);
       setLoading(false);
     });
-    return () => unsubscribe();
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
   }, []);
 
   if (loading) return <div>Loading...</div>;
-
   if (!isAuthenticated) return <Navigate to="/auth" replace />;
-
   return children;
 };
 
@@ -36,11 +39,24 @@ const Router = () => {
   const location = useLocation();
   const isAuthPage = location.pathname === "/auth";
   const auth = getAuth();
-  const token = auth.currentUser.getIdToken();
+  const [isAuthenticated, setIsAuthenticated] = useState(null);
+  
+  useEffect(() => {
+    let mounted = true;
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!mounted) return;
+      setIsAuthenticated(!!user);
+    });
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, []);
 
-  if (token && isAuthPage) {
-    return <Navigate to="/" replace />;
-  }
+  if (isAuthenticated === null) return <div>Loading...</div>;
+  if (isAuthenticated && isAuthPage) return <Navigate to="/" replace />;
+  if (!isAuthenticated && !isAuthPage) return <Navigate to="/auth" replace />;
+
   return (
     <div>
       <div className="flex">
@@ -54,29 +70,27 @@ const Router = () => {
             <Route
               path="/"
               element={
-                <ProtectedRouteWrapper>
+                <ProtectedRoute>
                   <HomePage />
-                </ProtectedRouteWrapper>
+                </ProtectedRoute>
               }
             />
             <Route
               path="/:username"
               element={
-                <ProtectedRouteWrapper>
+                <ProtectedRoute>
                   <Profile />
-                </ProtectedRouteWrapper>
+                </ProtectedRoute>
               }
             />
-
             <Route
               path="/friend"
               element={
-                <ProtectedRouteWrapper>
+                <ProtectedRoute>
                   <FriendPage />
-                </ProtectedRouteWrapper>
+                </ProtectedRoute>
               }
             />
-
             <Route path="/auth" element={<AuthPage />} />
           </Routes>
         </div>

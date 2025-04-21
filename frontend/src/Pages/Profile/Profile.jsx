@@ -16,10 +16,21 @@ const Profile = () => {
   const { username } = useParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const auth = getAuth();
-  const token = auth.currentUser.getIdToken();
   const dispatch = useDispatch();
   const { user } = useSelector((store) => store);
+  // Get token
+  const auth = getAuth();
+  const [token, setToken] = useState(null);
+  useEffect(() => {
+    const getToken = async () => {
+      if (auth.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        setToken(token);
+      }
+    };
+    getToken();
+  }, [auth.currentUser]);
+
 
   useEffect(() => {
     const fetchUserData = async () => {

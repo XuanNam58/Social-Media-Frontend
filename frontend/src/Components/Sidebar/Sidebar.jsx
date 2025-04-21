@@ -21,12 +21,34 @@ import { auth } from "../../firebase/firebase";
 const Sidebar = () => {
   const [activeTab, setActiveTab] = useState();
   const [showSearch, setShowSearch] = useState(false);
-  const { user } = useSelector((store) => store);
+  const user = useSelector((store) => store.user);
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const auth = getAuth();
-  const token = auth.currentUser.getIdToken();
+  const [token, setToken] = useState(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  useEffect(() => {
+    if (isLoggingOut) return; // Không lấy token nếu đang logout
+
+    const getToken = async () => {
+      if (!isLoggingOut && auth.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        setToken(token);
+      } else {
+        setToken(null);
+      }
+    };
+    getToken();
+  }, [isLoggingOut, auth.currentUser]);
+
+  useEffect(() => {
+    if (isLoggingOut || !token || !auth.currentUser) return; // Không gọi API nếu đang logout
+
+    if (token && auth.currentUser) {
+      dispatch(getUserProfileAction(token));
+    }
+  }, [token, auth.currentUser, isLoggingOut, dispatch]);
 
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -50,10 +72,6 @@ const Sidebar = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen]);
-
-  useEffect(() => {
-    if (token) dispatch(getUserProfileAction(token));
-  }, [token]);
 
   const handleTabClick = (title) => {
     if (title === "Search") {
@@ -98,11 +116,23 @@ const Sidebar = () => {
     };
   }, [showSearch]);
 
-  const handleLogout = () => async () => {
-    // localStorage.removeItem("token");
-    await signOut(auth);
-    dispatch(logoutAction());
-    window.location.href = "/auth";
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true); // Bắt đầu quá trình logout
+
+      // Đặt token về null
+      setToken(null);
+
+      // Thực hiện logout
+      dispatch(logoutAction());
+      await signOut(auth);
+
+      // Chuyển hướng
+      // window.location.href = "/auth";
+    } catch (error) {
+      console.error("Logout error:", error);
+      setIsLoggingOut(false); // Reset trạng thái nếu có lỗi
+    }
   };
 
   const handleCloseSearch = () => {

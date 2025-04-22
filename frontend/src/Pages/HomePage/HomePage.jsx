@@ -49,11 +49,17 @@ const HomePage = () => {
     if (username === "") return;
 
     const fetchPosts = async () => {
+      const token = await getToken();
+      if (!token) return;
       setLoading(true); // Set loading true khi gọi API
       try {
         const response = await fetch(
-          `http://localhost:9000/posts?page=${page}&size=5`
-        );
+          `http://localhost:9000/posts?page=${page}&size=5`, {
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${token}`,         
+            },
+      });
         const data = await response.json();
         setPosts((prevPosts) => [...prevPosts, ...data]); // Thêm bài viết mới vào danh sách cũ
       } catch (error) {

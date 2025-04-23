@@ -4,7 +4,7 @@ import axios from "axios";
 import { getAuth } from "firebase/auth";
 
 const CommentCard = ({ comment }) => {
-  const { id, username, content, date } = comment;
+  const { commentId, username, content, date, fullName, profilePicURL } = comment;
 
   const [isCommentLike, setIsCommentLike] = useState(false);
   const [likeCount, setLikeCount] = useState(23);
@@ -52,71 +52,7 @@ const CommentCard = ({ comment }) => {
        fetchUser();
      }, []); // Chạy khi component mount
 
-     //lay userPost
-       useEffect(() => {
-         const findUsePost = async () => {
-           const token = await getToken();
-           if (!username || !token) return; // ⚠️ tránh gọi khi chưa có username
-       
-           try {
-             const response = await fetch(
-               `http://localhost:8080/api/users/get-user-by-username/${username}`,{
-                 method: "GET",
-                 headers: {
-                   "Authorization": `Bearer ${token}`,
-                   "Content-Type": "application/json",
-                 },
-               },
-               
-             );
-             const data = await response.json();
-             
-               setUserComment(data);
-           
-           } catch (err) {
-             console.error("Error find userPost", err);
-           }
-         };
-       
-         findUsePost();
-       }, [id]); // 
-
-       const [replyUsers, setReplyUsers] = useState({});
-
-      useEffect(() => {
-        const fetchReplyUsers = async () => {
-          const token = await getToken();
-          if (!token || replies.length === 0) return;
-
-          const newUserMap = { ...replyUsers };
-
-          await Promise.all(
-            replies.map(async (reply) => {
-              if (!newUserMap[reply.username]) {
-                try {
-                  const res = await fetch(
-                    `http://localhost:8080/api/users/get-user-by-username/${reply.username}`,
-                    {
-                      headers: {
-                        "Authorization": `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                      },
-                    }
-                  );
-                  const data = await res.json();
-                  newUserMap[reply.username] = data;
-                } catch (err) {
-                  console.error("Lỗi fetch reply user:", err);
-                }
-              }
-            })
-          );
-
-          setReplyUsers(newUserMap);
-        };
-
-        fetchReplyUsers();
-      }, [replies]);
+    
 
 
   const handleLikeComment = () => {
@@ -133,13 +69,18 @@ const CommentCard = ({ comment }) => {
 
   const loadMoreReplies = async (requestedPage = page) => {
     if (loadingReplies || !hasMoreReplies) return;
-
+    const token = await getToken();
+    if (!token) return;
     setLoadingReplies(true);
     try {
       const response = await axios.get("http://localhost:9000/replyComments", {
         method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         params: {
-          commentID: id,
+          commentID: commentId,
           page: requestedPage,
           size: 5,
         },
@@ -167,7 +108,7 @@ const CommentCard = ({ comment }) => {
     if (replyText.trim() === "") return;
   
     const replyData = {
-      commentID: id,
+      commentID: commentId,
       username: userIndex.username,
       content: replyText,
     };
@@ -189,12 +130,12 @@ const CommentCard = ({ comment }) => {
         <div className="flex items-center">
           <img
             className="w-9 h-9 rounded-full"
-            src= {userComment.profilePicURL}
+            src= {profilePicURL}
             alt=""
           />
           <div className="ml-3">
             <p>
-              <span className="font-semibold">{username}</span>
+              <span className="font-semibold">{fullName}</span>
               <span className="ml-2">{content}</span>
             </p>
             <div className="flex items-center space-x-3 text-xs opacity-60 pt-2">
@@ -229,21 +170,18 @@ const CommentCard = ({ comment }) => {
 
         {/* Danh sách reply nếu có */}
         {replies.map((reply) => {
-          const replyUser = replyUsers[reply.username];
+          
 
           return (
             <div key={reply.id} className="flex items-center space-x-3 mb-2">
               <img
                 className="w-7 h-7 rounded-full"
-                src={
-                  replyUser?.profilePicURL ||
-                  "https://cdn.pixabay.com/photo/2018/02/17/21/56/cute-3161014_1280.jpg"
-                }
+                src={reply.profilePicURL}
                 alt=""
               />
               <div>
                 <p>
-                  <span className="font-semibold">{reply.username}</span>
+                  <span className="font-semibold">{reply.fullName}</span>
                   <span className="ml-2">{reply.content}</span>
                 </p>
               </div>

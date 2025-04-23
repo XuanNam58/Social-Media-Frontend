@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { loginAction } from "../../Redux/Auth/Action";
 import useShowToast from "../../Redux/useShowToast";
 import { getUserProfileAction } from "../../Redux/User/Action";
+import { getAuth } from "firebase/auth";
 
 const Login = () => {
   const [inputs, setInputs] = useState({
@@ -17,9 +18,11 @@ const Login = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const showToast = useShowToast();
-  const { user } = useSelector((store) => store);
-  const { auth } = useSelector((store) => store);
-  const token = localStorage.getItem("token");
+  const user = useSelector((store) => store.user);
+  const authState = useSelector((store) => store.auth);
+
+  const authFb = getAuth();
+  const [token, setToken] = useState(null);
 
   const validateEmail = (email) => {
     return String(email)
@@ -55,14 +58,28 @@ const Login = () => {
   };
 
   useEffect(() => {
-    if (token) dispatch(getUserProfileAction(token));
-  }, [token]);
+    const getToken = async () => {
+      if (authFb.currentUser) {
+        const token = await authFb.currentUser.getIdToken();
+        setToken(token);
+      } else {
+        setToken(null);
+      }
+    };
+    getToken();
+  }, [authFb.currentUser]);
 
   useEffect(() => {
-    if (user.reqUser?.username) {
-      navigate(`/${user.reqUser?.username}`);
+    if (token && authFb.currentUser) {
+      dispatch(getUserProfileAction(token));
     }
-  }, [token, user.reqUser]);
+  }, [token, authFb.currentUser]);
+
+  useEffect(() => {
+    if (user.reqUser?.username && authFb.currentUser) {
+      navigate('/');
+    }
+  }, [user.reqUser, authFb.currentUser]);
 
   return (
     <>
@@ -99,7 +116,7 @@ const Login = () => {
         size={"sm"}
         fontSize={14}
         onClick={() => handleSubmit(inputs)}
-        isLoading={auth.loading}
+        isLoading={authState.loading}
         loadingText="Logging in"
       >
         Log in

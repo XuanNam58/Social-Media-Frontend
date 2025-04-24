@@ -73,6 +73,33 @@ useEffect(() => {
     }
   };
 }, []);
+//websocket thong bao
+useEffect(() => {
+  if (!userIndex || !userIndex.username) return;
+
+  const socket = new SockJS("http://localhost:9001/ws");
+  const stompClient = new Client({
+    webSocketFactory: () => socket,
+    onConnect: () => {
+      console.log("🔔 Connected to Notification WebSocket");
+
+      // Subscribe để nhận thông báo riêng của user
+      stompClient.subscribe(`/topic/notifications/${userIndex.username}`, (message) => {
+        const notification = JSON.parse(message.body);
+        console.log("📩 New notification:", notification.content);
+        alert(`📢 Bạn có thông báo mới: ${notification.content}`);
+        // Bạn có thể lưu vào state nếu muốn hiển thị trong UI
+      });
+    },
+  });
+
+  stompClient.activate();
+
+  return () => {
+    stompClient.deactivate();
+  };
+}, [userIndex]);
+
 
   useEffect(() => {
     // Lấy bài viết khi username thay đổi hoặc khi trang thay đổi

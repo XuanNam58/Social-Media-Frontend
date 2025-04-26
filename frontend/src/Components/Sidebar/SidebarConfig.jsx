@@ -2,6 +2,8 @@ import { AiFillHome, AiOutlineHome, AiOutlineSearch, AiFillCompass, AiOutlineCom
 import { RiVideoFill, RiVideoLine } from "react-icons/ri";
 import { CgProfile } from "react-icons/cg";
 import { Search } from "lucide-react";
+import { IoMdNotificationsOutline, IoMdNotifications } from "react-icons/io"; // từ react-icons/io
+
 
 export const menu = [
   {
@@ -31,9 +33,10 @@ export const menu = [
   },
   {
     title: "Notifications",
-    icon: <AiOutlineHeart className="text-2xl mr-5" />,
-    activeIcon: <AiFillHeart className="text-2xl mr-5" />,
+    icon: <IoMdNotificationsOutline className="text-2xl mr-5" />,
+    activeIcon: <IoMdNotifications className="text-2xl mr-5" />,
   },
+  
   {
     title: "Create",
     icon: <AiOutlinePlusSquare className="text-2xl mr-5" />,

@@ -1,15 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import PostCard from "../../Components/Post/PostCard";
 import PostBox from "../../Components/Box/PostBox";
 import ContactRight from "../../Components/ContactRight/ContactRight";
 import { getAuth } from "firebase/auth";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
+
 
 const HomePage = () => {
   const [posts, setPosts] = useState([]); // Danh sách bài viết
-  const [username, setUsername] = useState(""); // Tên người dùng
+  const [userIndex, setUserIndex] = useState({}); // Tên người dùng
   const [page, setPage] = useState(1); // Trang hiện tại (ban đầu là trang 1)
   const [loading, setLoading] = useState(false); // Trạng thái loading khi gọi API
 
+  
+  
+  
   const getToken = async () => {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -36,7 +42,7 @@ const HomePage = () => {
           },
         });
         const dataUser = await response.json();
-        setUsername(dataUser.username);
+        setUserIndex(dataUser);
       } catch (error) {
         console.error("Lỗi khi lấy thông tin user:", error);
       }
@@ -44,16 +50,47 @@ const HomePage = () => {
     fetchUser();
   }, []); // Chạy khi component mount
 
+const stompClientRef = useRef(null);
+
+useEffect(() => {
+  const socket = new SockJS("http://localhost:9000/ws");
+  const stompClient = new Client({
+    webSocketFactory: () => socket,
+    onConnect: () => {
+      console.log("Connected to WebSocket");
+      stompClient.subscribe("/topic/posts", (message) => {
+        const newPost = JSON.parse(message.body);
+        setPosts((prev) => [newPost, ...prev]);
+      });
+    },
+  });
+
+  stompClient.activate();
+  stompClientRef.current = stompClient;
+
+  return () => {
+    if (stompClientRef.current) {
+      stompClientRef.current.deactivate();
+    }
+  };
+}, []);
+
   useEffect(() => {
     // Lấy bài viết khi username thay đổi hoặc khi trang thay đổi
-    if (username === "") return;
+    if (userIndex.username === "") return;
 
     const fetchPosts = async () => {
+      const token = await getToken();
+      if (!token) return;
       setLoading(true); // Set loading true khi gọi API
       try {
         const response = await fetch(
-          `http://localhost:9000/posts?page=${page}&size=5`
-        );
+          `http://localhost:9000/posts?page=${page}&size=5`, {
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${token}`,         
+            },
+      });
         const data = await response.json();
         setPosts((prevPosts) => [...prevPosts, ...data]); // Thêm bài viết mới vào danh sách cũ
       } catch (error) {
@@ -64,7 +101,7 @@ const HomePage = () => {
     };
 
     fetchPosts();
-  }, [username, page]); // Chạy khi `username` hoặc `page` thay đổi
+  }, [userIndex.username, page]); // Chạy khi `username` hoặc `page` thay đổi
 
   const handleLoadMore = () => {
     setPage((prevPage) => prevPage + 1); // Tăng trang mỗi khi ấn "Load More"
@@ -75,9 +112,9 @@ const HomePage = () => {
       <div className="mt-10 flex w-[100%] justify-center">
         <div className="w-[56%] px-10">
           <div className="space-y-10 w-full mt-10 max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200">
-            <PostBox />
+            <PostBox userIndex={userIndex}/>
             {posts.length > 0 ? (
-              posts.map((post, index) => <PostCard key={index} post={post} usernameIndex ={username}/>)
+              posts.map((post, index) => <PostCard key={index} post={post} usernameIndex ={userIndex.username}/>)
             ) : (
               <p className="text-center text-gray-500">Đang tải bài viết...</p>
             )}

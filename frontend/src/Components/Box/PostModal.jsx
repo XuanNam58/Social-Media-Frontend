@@ -17,7 +17,7 @@ export default function PostModal() {
 
   //get token
   const [posts, setPosts] = useState([]);
-    const [username, setUsername] = useState("");
+    const [userIndex, setUserIndex] = useState({});
   
     const getToken = async () => {
       const auth = getAuth(); // Lấy instance của Firebase Auth
@@ -49,7 +49,7 @@ export default function PostModal() {
               }
           }); // API lấy user
             const dataUser = await response.json();
-            setUsername(dataUser.username);
+            setUserIndex(dataUser);
           } catch (error) {
             console.error("Lỗi khi lấy thông tin user:", error);
           }
@@ -107,9 +107,11 @@ export default function PostModal() {
 
   const submitPost = async (uploadedMediaURL, mediaType) => {
     const newPost = {
-      username,
+      username: userIndex.username,
       content,
       date: getCurrentDate(),
+      fullName: userIndex.fullName,
+      profilePicURL: userIndex.profilePicURL,
     };
   
     // Chỉ thêm `picture` hoặc `video` nếu có file upload
@@ -173,11 +175,11 @@ export default function PostModal() {
       <div className="flex items-center space-x-3 mt-3">
         <img
           className="w-10 h-10 rounded-full"
-          src="https://cdn.pixabay.com/photo/2025/01/09/16/59/forest-9322222_1280.jpg"
+          src={userIndex.profilePicURL}
           alt="Avatar"
         />
         <div>
-          <p className="font-semibold">{username}</p>
+          <p className="font-semibold">{userIndex.fullName}</p>
           <button className="text-gray-500 text-xs">public</button>
         </div>
       </div>

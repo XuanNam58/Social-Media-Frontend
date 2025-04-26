@@ -19,7 +19,7 @@ import { useDisclosure } from "@chakra-ui/react";
 
 const PostCard = ({ post }, usernameIndex) => {
   //post
-  const { id, username, date, picture, content, video, numberOfLike } = post;
+  const { postId, username, date, picture, content, video, numberOfLike, fullName,profilePicURL } = post;
   const [userIndex, setUserIndex] = useState({}); // Tên người dùng
   const [showDropDown, setShowDropDown] = useState(false);
   const [isPostLiked, setIsPostLiked] = useState(false);
@@ -72,7 +72,7 @@ const handleSavePost = () => {
   
       try {
         const response = await fetch(
-          `http://localhost:9000/api/likes/check?username=${userIndex.username}&postID=${id}`
+          `http://localhost:9000/api/likes/check?username=${userIndex.username}&postID=${postId}`
         );
         const data = await response.json();
         if (data.liked) {
@@ -84,41 +84,13 @@ const handleSavePost = () => {
     };
   
     checkIfLiked();
-  }, [userIndex.username, id]); // 
+  }, [userIndex.username, postId]); // 
   
-  //lay userPost
-  useEffect(() => {
-    const findUsePost = async () => {
-      const token = await getToken();
-      if (!username || !token) return; // ⚠️ tránh gọi khi chưa có username
-  
-      try {
-        const response = await fetch(
-          `http://localhost:8080/api/users/get-user-by-username/${username}`,{
-            method: "GET",
-            headers: {
-              "Authorization": `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          },
-          
-        );
-        const data = await response.json();
-        
-          setUserPost(data);
-      
-      } catch (err) {
-        console.error("Error find userPost", err);
-      }
-    };
-  
-    findUsePost();
-  }, [id]); // 
 
   //like
   const handlePostLike = async () => {
     const like = {
-      postID: id,
+      postID: postId,
       username: userIndex.username,
     };
   
@@ -156,11 +128,11 @@ const handleSavePost = () => {
           <div className="flex items-center">
             <img
               className="h-12 w-12 rounded-full"
-              src= {userPost.profilePicURL}
+              src= {profilePicURL}
               alt=""
             />
             <div className="pl-2">
-              <p className="font-semibold text-sm">{username}</p>
+              <p className="font-semibold text-sm">{fullName}</p>
               <p className="font-thin text-sm">{date}</p>
             </div>
           </div>

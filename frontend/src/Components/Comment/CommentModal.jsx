@@ -4,7 +4,7 @@ import {
   ModalContent,
   ModalOverlay,
 } from "@chakra-ui/react";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { getAuth } from "firebase/auth";
 import {
   BsBookmark,
@@ -17,6 +17,8 @@ import { AiFillHeart, AiOutlineHeart } from "react-icons/ai";
 import { FaRegComment } from "react-icons/fa";
 import { RiSendPlaneLine } from "react-icons/ri";
 import "./CommentModal.css";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 
 const CommentModal = ({
   post,
@@ -30,7 +32,7 @@ const CommentModal = ({
   const [newComment, setNewComment] = useState("");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [username, setUsername] = useState("");
+  const [userIndex, setUserIndex] = useState({});
   const [comments, setComments] = useState([]);
   const [userPost, setUserPost] = useState({});
 
@@ -54,15 +56,41 @@ const CommentModal = ({
       return null;
     }
   };
+  const stompClientRef = useRef(null);
+  
+  useEffect(() => {
+    const socket = new SockJS("http://localhost:9000/ws");
+    const stompClient = new Client({
+      webSocketFactory: () => socket,
+      onConnect: () => {
+        console.log("Connected to WebSocket");
+        stompClient.subscribe("/topic/comments", (message) => {
+          const newComment = JSON.parse(message.body);
+          setComments((prev) => [newComment, ...prev]);
+        });
+      },
+    });
+  
+    stompClient.activate();
+    stompClientRef.current = stompClient;
+  
+    return () => {
+      if (stompClientRef.current) {
+        stompClientRef.current.deactivate();
+      }
+    };
+  }, []);
 
   const handleSendComment = async () => {
     if (newComment.trim() === "") return;
   
     const commentData = {
-      postID: post.id,
-      username: username,
+      postID: post.postId,
+      username: userIndex.username,
       content: newComment,
       date: getCurrentDate(),
+      fullName: userIndex.fullName,
+      profilePicURL: userIndex.profilePicURL,
     };
 
     console.log(commentData);
@@ -103,7 +131,7 @@ const CommentModal = ({
           },
         });
         const dataUser = await response.json();
-        setUsername(dataUser.username);
+        setUserIndex(dataUser);
       } catch (error) {
         console.error("Lỗi khi lấy thông tin user:", error);
       }
@@ -149,12 +177,19 @@ const CommentModal = ({
 
   //lay comment
   useEffect(() => {
-    if (!username) return;
+    if (!userIndex.username) return;
     const fetchComments = async () => {
+      const token = await getToken();
+      if (!post.username|| !token) return;
       setLoading(true);
       try {
         const response = await fetch(
-          `http://localhost:9000/comments?postID=${post.id}&page=${page}&size=5`
+          `http://localhost:9000/comments?postID=${post.postId}&page=${page}&size=5`,{
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${token}`,            
+            },
+          },
         );
         const data = await response.json();
         setComments((prev) => [...prev, ...data]);
@@ -165,7 +200,7 @@ const CommentModal = ({
       }
     };
     fetchComments();
-  }, [page, post.id, username]);
+  }, [page, post.id, userIndex.username]);
 
   return (
     <Modal size={"4xl"} onClose={onClose} isOpen={isOpen} isCentered>

@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import {
+  getFriendIdsAction,
   getFriendListAction,
-  getMutualFollowIdsAction,
 } from "../../Redux/User/Action";
 import { useNavigate } from "react-router-dom";
 import { getAuth } from "firebase/auth";
@@ -18,13 +18,13 @@ export default function FriendPage() {
   // Get token
   const auth = getAuth();
   const [token, setToken] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
   useEffect(() => {
     const getToken = async () => {
       if (auth.currentUser) {
         const token = await auth.currentUser.getIdToken();
         setToken(token);
-      } else {
-        setToken(null);
       }
     };
     getToken();
@@ -38,39 +38,49 @@ export default function FriendPage() {
     navigate(`/${username}`);
   };
 
+  // Load friends data
   useEffect(() => {
-    if (token && user.reqUser?.followers && user.reqUser?.following) {
-      dispatch(
-        getMutualFollowIdsAction({
-          followers: user.reqUser.followers,
-          following: user.reqUser.following,
-          token: token,
-        })
-      );
-    }
+    const loadFriends = async () => {
+      if (!token || !user.reqUser?.result?.uid || isLoading) return;
+      
+      setIsLoading(true);
+      try {
+        // Gọi action đầu tiên
+        const action = await dispatch(
+          getFriendIdsAction({
+            uid: user.reqUser.result.uid,
+            page: currentPage,
+            size: friendsPerPage,
+            token: token,
+          })
+        );
 
-    console.log("user.reqUser?.followers", user.reqUser?.followers);
-  }, [user.reqUser?.followers, user.reqUser?.following, token, dispatch]);
+        // Sau khi hoàn thành, kiểm tra và gọi action thứ hai
+        if (action?.payload?.result?.length > 0) {
+          await dispatch(
+            getFriendListAction({
+              userIds: action.payload.result,
+              type: "friend-list",
+              token: token,
+            })
+          );
+        }
+      } catch (error) {
+        console.error("Error loading friends:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  useEffect(() => {
-    if (user?.mutualFollowIds.length > 0) {
-      dispatch(
-        getFriendListAction({
-          userIds: user.mutualFollowIds,
-          type: "friend-list",
-          token: token,
-        })
-      );
-    }
-  }, [user?.mutualFollowIds, token, dispatch]);
+    loadFriends();
+  }, [token, user.reqUser?.result?.uid, currentPage, friendsPerPage, dispatch]);
 
-  const friends = user?.findUsersByIds || [];
-  console.log("FRIEND", friends);
+  const friends = user?.findUsersByIds?.result || [];
   // Filter friends based on search query
   const filteredFriends = friends.filter(
     (friend) =>
-      friend.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      friend.fullName.toLowerCase().includes(searchQuery.toLowerCase())
+      friend?.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      friend?.fullName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Calculate pagination

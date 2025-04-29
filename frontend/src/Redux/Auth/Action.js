@@ -38,7 +38,7 @@ export const loginAction = (data, showToast) => async (dispatch) => {
     }
 
     const responseData = await res.json();
-    const token = responseData.token;
+    const token = responseData.result.token;
 
     console.log("login", token);
 
@@ -67,9 +67,9 @@ export const signupAction = (data, showToast) => async (dispatch) => {
     }
 
     const user = await res.json();
-    console.log("signup user", user);
+    console.log("signup user", user.result);
 
-    dispatch({ type: SIGNUP_SUCCESS, payload: user });
+    dispatch({ type: SIGNUP_SUCCESS, payload: user.result });
   } catch (error) {
     dispatch({ type: SIGNUP_FAILURE, payload: error.message})
     showToast("Error", error.message, "error");

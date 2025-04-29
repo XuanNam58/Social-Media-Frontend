@@ -115,9 +115,9 @@ const Search = ({ onClose }) => {
         </div>
 
         {/* Search Results */}
-        {searchQuery && user.searchUser && user.searchUser.length > 0 && (
+        {searchQuery && user.searchUser && user.searchUser.result.length > 0 && (
           <div className="space-y-3">
-            {user.searchUser.map((user) => (
+            {user.searchUser.result.map((user) => (
               <div
                 key={user.username}
                 onClick={() => handleUserClick(user.username)}

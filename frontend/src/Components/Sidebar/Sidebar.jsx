@@ -6,6 +6,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { getUserProfileAction } from "../../Redux/User/Action";
 import { logoutAction } from "../../Redux/Auth/Action";
 import Search from "../Search/Search";
+import Notification from "../Notification/Notification";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 import {
   Settings,
   BarChart2,
@@ -21,16 +24,31 @@ import { auth } from "../../firebase/firebase";
 const Sidebar = () => {
   const [activeTab, setActiveTab] = useState();
   const [showSearch, setShowSearch] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
   const user = useSelector((store) => store.user);
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
   const [token, setToken] = useState(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [userIndex, setUserIndex] = useState(null);
+  const stompClientRef = useRef(null);
+
+  const getToken = async () => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (user) {
+      const token = await user.getIdToken();
+      return token;
+    } else {
+      console.error("User chưa đăng nhập!");
+      return null;
+    }
+  };
 
   useEffect(() => {
-    if (isLoggingOut) return; // Không lấy token nếu đang logout
-
+    if (isLoggingOut) return;
     const getToken = async () => {
       if (!isLoggingOut && auth.currentUser) {
         const token = await auth.currentUser.getIdToken();
@@ -43,8 +61,7 @@ const Sidebar = () => {
   }, [isLoggingOut, auth.currentUser]);
 
   useEffect(() => {
-    if (isLoggingOut || !token || !auth.currentUser) return; // Không gọi API nếu đang logout
-
+    if (isLoggingOut || !token || !auth.currentUser) return;
     if (token && auth.currentUser) {
       dispatch(getUserProfileAction(token));
     }
@@ -56,7 +73,6 @@ const Sidebar = () => {
     setIsOpen(!isOpen);
   };
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -76,13 +92,20 @@ const Sidebar = () => {
   const handleTabClick = (title) => {
     if (title === "Search") {
       setShowSearch(!showSearch);
+      if (showNotification) setShowNotification(false); // Đóng notification nếu đang mở
       return;
     }
-
-    if (showSearch) {
-      setShowSearch(false);
+    if (title === "Notifications") {
+      setShowNotification(!showNotification);
+      setNotificationCount(0);
+      if (showSearch) setShowSearch(false); // Đóng search nếu đang mở
+      return;
     }
+    if (showSearch) setShowSearch(false);
+    if (showNotification) setShowNotification(false);
+
     setActiveTab(title);
+
     if (title === "Profile") {
       navigate(`/${user.reqUser?.result.username}`);
     } else if (title === "Home") {
@@ -92,7 +115,6 @@ const Sidebar = () => {
     }
   };
 
-  // Close search when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       const searchElement = document.getElementById("search-panel");
@@ -118,20 +140,13 @@ const Sidebar = () => {
 
   const handleLogout = async () => {
     try {
-      setIsLoggingOut(true); // Bắt đầu quá trình logout
-
-      // Đặt token về null
+      setIsLoggingOut(true);
       setToken(null);
-
-      // Thực hiện logout
       dispatch(logoutAction());
       await signOut(auth);
-
-      // Chuyển hướng
-      // window.location.href = "/auth";
     } catch (error) {
       console.error("Logout error:", error);
-      setIsLoggingOut(false); // Reset trạng thái nếu có lỗi
+      setIsLoggingOut(false);
     }
   };
 
@@ -139,17 +154,68 @@ const Sidebar = () => {
     setShowSearch(false);
   };
 
+  const handleCloseNotification = () => {
+    setShowNotification(false);
+  };
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const token = await getToken();
+      if (!token) return;
+      try {
+        const response = await fetch("http://localhost:8080/api/users/req", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+        const dataUser = await response.json();
+        setUserIndex(dataUser);
+      } catch (error) {
+        console.error("Lỗi khi lấy thông tin user:", error);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
+    if (!userIndex || !userIndex.username) return;
+
+    const socket = new SockJS("http://localhost:9001/ws");
+    const stompClient = new Client({
+      webSocketFactory: () => socket,
+      onConnect: () => {
+        console.log("🔔 Connected to Notification WebSocket");
+
+        stompClient.subscribe(
+          `/topic/notifications/${userIndex.username}`,
+          (message) => {       
+            setNotificationCount((prev) => prev + 1);
+          }
+        );
+      },
+    });
+
+    stompClient.activate();
+
+    return () => {
+      stompClient.deactivate();
+    };
+  }, [userIndex]);
+
   return (
     <>
       {showSearch && <Search onClose={handleCloseSearch} />}
+      {showNotification && <Notification onClose={handleCloseNotification} />}
       <div
         className={`sticky top-0 h-[100vh] ${
-          showSearch ? "w-20" : "w-[250px]"
+          showSearch || showNotification ? "w-20" : "w-[250px]"
         } transition-all duration-200`}
       >
         <div
           className={`flex flex-col justify-between h-full ${
-            showSearch ? "px-2" : "px-10"
+            showSearch || showNotification ? "px-2" : "px-10"
           }`}
         >
           <div>
@@ -157,13 +223,12 @@ const Sidebar = () => {
               <img
                 className="w-24"
                 src="/Images/logo.png"
-                // src="https://i.imgur.com/zqpwkLQ.png"
                 alt=""
               />
             </div>
 
             <div className="mt-10">
-              {menu.map((item) => (
+              {menu(notificationCount).map((item) => (
                 <div
                   key={item.title}
                   id={item.title === "Search" ? "search-icon" : ""}
@@ -173,10 +238,12 @@ const Sidebar = () => {
                   <div className="w-12 flex justify-center">
                     {activeTab === item.title ? item.activeIcon : item.icon}
                   </div>
-                  {!showSearch && (
+                  {!(showSearch || showNotification) && (
                     <p
                       className={`${
-                        activeTab === item.title ? "font-bold" : "font-semibold"
+                        activeTab === item.title
+                          ? "font-bold"
+                          : "font-semibold"
                       }`}
                     >
                       {item.title}
@@ -187,7 +254,7 @@ const Sidebar = () => {
             </div>
           </div>
 
-          {!showSearch && (
+          {!(showSearch || showNotification) && (
             <div
               className="flex items-center cursor-pointer pb-10"
               onClick={toggleDropdown}
@@ -199,8 +266,7 @@ const Sidebar = () => {
             </div>
           )}
 
-          {/* Dropdown menu */}
-          {isOpen && !showSearch && (
+          {isOpen && !(showSearch || showNotification) && (
             <div
               ref={dropdownRef}
               className="absolute bottom-20 left-0 w-64 bg-white rounded-lg shadow-lg overflow-hidden z-50 ml-5"

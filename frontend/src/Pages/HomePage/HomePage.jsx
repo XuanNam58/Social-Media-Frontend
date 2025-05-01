@@ -6,16 +6,14 @@ import { getAuth } from "firebase/auth";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
-
 const HomePage = () => {
-  const [posts, setPosts] = useState([]); // Danh sách bài viết
-  const [userIndex, setUserIndex] = useState({}); // Tên người dùng
-  const [page, setPage] = useState(1); // Trang hiện tại (ban đầu là trang 1)
-  const [loading, setLoading] = useState(false); // Trạng thái loading khi gọi API
+  const [posts, setPosts] = useState([]);
+  const [userIndex, setUserIndex] = useState({});
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true); // Trạng thái xem có bài mới không
+  const containerRef = useRef(null);
 
-  
-  
-  
   const getToken = async () => {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -29,7 +27,6 @@ const HomePage = () => {
   };
 
   useEffect(() => {
-    // Lấy thông tin user khi component mount
     const fetchUser = async () => {
       const token = await getToken();
       if (!token) return;
@@ -37,7 +34,7 @@ const HomePage = () => {
         const response = await fetch("http://localhost:8080/api/users/req", {
           method: "GET",
           headers: {
-            "Authorization": `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         });
@@ -48,93 +45,102 @@ const HomePage = () => {
       }
     };
     fetchUser();
-  }, []); // Chạy khi component mount
+  }, []);
 
-const stompClientRef = useRef(null);
-
-useEffect(() => {
-  const socket = new SockJS("http://localhost:9000/ws");
-  const stompClient = new Client({
-    webSocketFactory: () => socket,
-    onConnect: () => {
-      console.log("Connected to WebSocket");
-      stompClient.subscribe("/topic/posts", (message) => {
-        const newPost = JSON.parse(message.body);
-        setPosts((prev) => [newPost, ...prev]);
-      });
-    },
-  });
-
-  stompClient.activate();
-  stompClientRef.current = stompClient;
-
-  return () => {
-    if (stompClientRef.current) {
-      stompClientRef.current.deactivate();
-    }
-  };
-}, []);
+  const stompClientRef = useRef(null);
 
   useEffect(() => {
-    // Lấy bài viết khi username thay đổi hoặc khi trang thay đổi
-    if (userIndex.username === "") return;
+    const socket = new SockJS("http://localhost:9000/ws");
+    const stompClient = new Client({
+      webSocketFactory: () => socket,
+      onConnect: () => {
+        console.log("Connected to WebSocket");
+        stompClient.subscribe("/topic/posts", (message) => {
+          const newPost = JSON.parse(message.body);
+          setPosts((prev) => [newPost, ...prev]);
+        });
+      },
+    });
+
+    stompClient.activate();
+    stompClientRef.current = stompClient;
+
+    return () => {
+      if (stompClientRef.current) {
+        stompClientRef.current.deactivate();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!userIndex.username) return;
 
     const fetchPosts = async () => {
       const token = await getToken();
       if (!token) return;
-      setLoading(true); // Set loading true khi gọi API
+      setLoading(true);
       try {
-        const response = await fetch(
-          `http://localhost:9000/posts?page=${page}&size=5`, {
-            method: "GET",
-            headers: {
-              "Authorization": `Bearer ${token}`,         
-            },
-      });
+        const response = await fetch(`http://localhost:9000/posts?page=${page}&size=5`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         const data = await response.json();
-        setPosts((prevPosts) => [...prevPosts, ...data]); // Thêm bài viết mới vào danh sách cũ
+        setPosts((prevPosts) => [...prevPosts, ...data]);
+        setHasMore(data.length > 0); // Kiểm tra xem có thêm bài viết không
       } catch (error) {
         console.error("Lỗi khi lấy bài post:", error);
       } finally {
-        setLoading(false); // Set loading false sau khi hoàn thành API
+        setLoading(false);
       }
     };
 
     fetchPosts();
-  }, [userIndex.username, page]); // Chạy khi `username` hoặc `page` thay đổi
+  }, [userIndex.username, page]);
 
-  const handleLoadMore = () => {
-    setPage((prevPage) => prevPage + 1); // Tăng trang mỗi khi ấn "Load More"
+  const handleScroll = () => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+
+    if (scrollTop + clientHeight >= scrollHeight - 100 && !loading) {
+      setLoading(true);
+      setTimeout(() => {
+        setPage((prevPage) => prevPage + 1);
+        setLoading(false);
+      }, 1000);
+    }
   };
 
   return (
     <div>
       <div className="mt-10 flex w-[100%] justify-center">
         <div className="w-[56%] px-10">
-          <div className="space-y-10 w-full mt-10 max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200">
-            <PostBox userIndex={userIndex}/>
+          <div
+            ref={containerRef}
+            onScroll={handleScroll}
+            className="space-y-10 w-full mt-10 max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
+          >
+            <PostBox userIndex={userIndex} />
             {posts.length > 0 ? (
-              posts.map((post, index) => <PostCard key={index} post={post} usernameIndex ={userIndex.username}/>)
+              posts.map((post, index) => (
+                <PostCard key={index} post={post} usernameIndex={userIndex.username} />
+              ))
             ) : (
               <p className="text-center text-gray-500">Đang tải bài viết...</p>
             )}
 
-            {/* Hiển thị nút Load More nếu có bài viết */}
-            {posts.length > 0 && !loading && (
-              <div className="text-center mt-5">
-                <button
-                  onClick={handleLoadMore}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-md"
-                >
-                  Load More
-                </button>
-              </div>
-            )}
-
-            {/* Hiển thị loading khi đang tải thêm bài viết */}
             {loading && (
               <div className="text-center mt-5">
                 <p className="text-gray-500">Đang tải thêm bài viết...</p>
+              </div>
+            )}
+
+            {!hasMore && !loading && (
+              <div className="text-center mt-5">
+                <p className="text-gray-500">Bạn đã xem hết bài viết!</p>
               </div>
             )}
           </div>

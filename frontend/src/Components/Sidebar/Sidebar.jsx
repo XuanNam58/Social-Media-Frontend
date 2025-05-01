@@ -107,7 +107,7 @@ const Sidebar = () => {
     setActiveTab(title);
 
     if (title === "Profile") {
-      navigate(`/${user.reqUser?.username}`);
+      navigate(`/${user.reqUser?.result.username}`);
     } else if (title === "Home") {
       navigate("/");
     } else if (title === "Friend") {

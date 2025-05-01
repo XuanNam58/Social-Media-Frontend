@@ -1,6 +1,8 @@
 import {
   FOLLOW_USER,
-  GET_MUTUAL_FOLLOW_IDS,
+  GET_FOLLOWER_IDS,
+  GET_FOLLOWING_IDS,
+  GET_FRIEND_IDS,
   GET_UID_BY_USERNAME,
   GET_USER_BY_USERNAME,
   GET_USERS_BY_USER_IDS,
@@ -17,27 +19,59 @@ const initialValue = {
   searchUser: null,
   userByUsername: null,
   uid: null,
-  mutualFollowIds: []
+  friendIds: [],
+  followerIds: [],
+  followingIds: [],
+
+  page: 1,
+  hasMore: true,
+  modalType: null,
 };
-export const UserReducer = (store = initialValue, { type, payload }) => {
-  switch (type) {
+export const UserReducer = (state = initialValue, action) => {
+  switch (action.type) {
     case REQ_USER:
-      return { ...store, reqUser: payload };
+      return { ...state, reqUser: action.payload };
     case GET_USERS_BY_USER_IDS:
-      return { ...store, findUsersByIds: payload };
+      return {
+        ...state,
+        findUsersByIds:
+          state.page === 1
+            ? action.payload
+            : [...state.findUsersByIds, ...action.payload],
+      };
     case FOLLOW_USER:
-      return { ...store, followUser: payload };
+      return { ...state, followUser: action.payload };
     case UNFOLLOW_USER:
-      return { ...store, unFollowUser: payload };
+      return { ...state, unFollowUser: action.payload };
     case SEARCH_USER:
-      return { ...store, searchUser: payload };
+      return { ...state, searchUser: action.payload };
     case GET_USER_BY_USERNAME:
-      return { ...store, userByUsername: payload };
+      return { ...state, userByUsername: action.payload };
     case GET_UID_BY_USERNAME:
-      return { ...store, uid: payload };
-      case GET_MUTUAL_FOLLOW_IDS:
-      return { ...store, mutualFollowIds: payload };
+      return { ...state, uid: action.payload };
+    case GET_FRIEND_IDS:
+      return { ...state, friendIds: action.payload };
+    case GET_FOLLOWER_IDS:
+      return {
+        ...state,
+        followerIds:
+          action.payload.page === 1
+            ? action.payload.ids
+            : [...state.followerIds, ...action.payload.ids],
+        page: action.payload.page,
+        hasMore: action.payload.hasMore,
+      };
+    case GET_FOLLOWING_IDS:
+      return {
+        ...state,
+        followingIds:
+          action.payload.page === 1
+            ? action.payload.ids
+            : [...state.followingIds, ...action.payload.ids],
+        page: action.payload.page,
+        hasMore: action.payload.hasMore,
+      };
   }
 
-  return store;
+  return state;
 };

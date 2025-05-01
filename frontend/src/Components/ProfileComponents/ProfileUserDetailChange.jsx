@@ -2,7 +2,13 @@ import React, { useEffect, useState } from "react";
 import FollowListModal from "./FollowListModal";
 import { useDisclosure } from "@chakra-ui/react";
 import { useDispatch, useSelector } from "react-redux";
-import { getUsersByUserIds } from "../../Redux/User/Action";
+import {
+  getFollowerIdsAction,
+  getFollowerListAction,
+  getFollowingIdsAction,
+  getFollowingListAction,
+  getUsersByUserIds,
+} from "../../Redux/User/Action";
 import { getAuth } from "firebase/auth";
 const profile = {
   username: "ganknow",
@@ -98,46 +104,69 @@ const ProfileUserDetailChange = ({
     }
   };
 
-  // Đảm bảo followers và following là mảng
-  const followers = Array.isArray(userParam.followers)
-    ? userParam.followers
-    : [];
-  const following = Array.isArray(userParam.following)
-    ? userParam.following
-    : [];
-
   // Kiểm tra và sử dụng profilePicURL hoặc profilePicUrl
   const profilePicUrl =
     userParam.profilePicURL || userParam.profilePicUrl || profile.avatar;
 
   // Modal
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [modalType, setModalType] = useState(null);
   const [modalTile, setModalTitle] = useState("");
 
-  const followerData = {
-    token: token,
-    userIds: userParam.followers,
-    type: "follower-list",
-  };
-
-  const handleOpenFollowers = (data) => {
-    setModalType("followers");
+  const handleOpenFollowers = () => {
+    console.log("Opening followers modal");
     setModalTitle("Followers");
-    dispatch(getUsersByUserIds(followerData));
+    dispatch(
+      getFollowerIdsAction({
+        token,
+        followedId: userParam.uid,
+        page: 1,
+        size: 5,
+      })
+    )
+      .then((action) => {
+        if (action && action.payload && action.payload.ids) {
+          const newIds = action.payload.ids;
+          dispatch(
+            getFollowerListAction({
+              token,
+              userIds: newIds,
+              type: "follower-list",
+            })
+          );
+        }
+      })
+      .catch((error) => {
+        console.error("Error getting followers:", error);
+      });
     onOpen();
   };
 
-  const followingData = {
-    token: token,
-    userIds: userParam.following,
-    type: "following-list",
-  };
-
-  const handleOpenFollowing = (data) => {
-    setModalType("following");
+  const handleOpenFollowing = () => {
+    console.log("Opening following modal");
     setModalTitle("Following");
-    dispatch(getUsersByUserIds(followingData));
+    dispatch(
+      getFollowingIdsAction({
+        token,
+        followerId: userParam.uid,
+        page: 1,
+        size: 5,
+      })
+    )
+      .then((action) => {
+        if (action && action.payload && action.payload.ids) {
+          const newIds = action.payload.ids;
+          dispatch(
+            getFollowingListAction({
+              token,
+              userIds: newIds,
+              type: "following-list",
+            })
+          );
+        }
+      })
+      .catch((error) => {
+        console.error("Error getting following:", error);
+      });
     onOpen();
   };
 
@@ -172,18 +201,18 @@ const ProfileUserDetailChange = ({
           </div>
 
           <div className="flex justify-center mt-4 text-gray-700 space-x-6 text-sm font-medium">
-            <span>{userParam.posts || 0} posts</span>
+            <span>{userParam.postNum || 0} posts</span>
             <span
               className="cursor-pointer hover:text-gray-900"
               onClick={handleOpenFollowers}
             >
-              {followers.length} followers
+              {userParam.followerNum} followers
             </span>
             <span
               className="cursor-pointer hover:text-gray-900"
               onClick={handleOpenFollowing}
             >
-              {following.length} following
+              {userParam.followingNum} following
             </span>
           </div>
 
@@ -192,7 +221,7 @@ const ProfileUserDetailChange = ({
             isOpen={isOpen}
             onClose={onClose}
             title={modalTile}
-            users={user.findUsersByIds}
+            userId={userParam.uid}
           />
         </div>
       </div>

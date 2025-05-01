@@ -54,7 +54,7 @@ const Signup = () => {
         } else {
           // Chỉ parse JSON khi response ok
           const data = await res.json();
-          if (data.exists) {
+          if (data.result) {
             tempErrors.username = data.message;
           }
         }

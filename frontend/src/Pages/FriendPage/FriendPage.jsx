@@ -34,6 +34,9 @@ export default function FriendPage() {
   const { user } = useSelector((store) => store);
   const navigate = useNavigate();
 
+  // Thêm selector để theo dõi friendIds
+  const friendIds = useSelector((store) => store.user.friendIds);
+
   const handleUserClick = (username) => {
     navigate(`/${username}`);
   };
@@ -46,7 +49,7 @@ export default function FriendPage() {
       setIsLoading(true);
       try {
         // Gọi action đầu tiên
-        const action = await dispatch(
+        await dispatch(
           getFriendIdsAction({
             uid: user.reqUser.result.uid,
             page: currentPage,
@@ -54,16 +57,19 @@ export default function FriendPage() {
             token: token,
           })
         );
-
-        // Sau khi hoàn thành, kiểm tra và gọi action thứ hai
-        if (action?.payload?.result?.length > 0) {
+        
+        console.log("FriendIds state:", friendIds);
+        
+        // Kiểm tra nếu có kết quả từ getFriendIdsAction
+        if (friendIds?.result?.length > 0) {
           await dispatch(
             getFriendListAction({
-              userIds: action.payload.result,
+              userIds: friendIds.result,
               type: "friend-list",
               token: token,
             })
           );
+          console.log("friend list: ", user.findUsersByIds.result)
         }
       } catch (error) {
         console.error("Error loading friends:", error);
@@ -73,7 +79,7 @@ export default function FriendPage() {
     };
 
     loadFriends();
-  }, [token, user.reqUser?.result?.uid, currentPage, friendsPerPage, dispatch]);
+  }, [token, user.reqUser?.result?.uid, currentPage, friendsPerPage, dispatch, friendIds]);
 
   const friends = user?.findUsersByIds?.result || [];
   // Filter friends based on search query

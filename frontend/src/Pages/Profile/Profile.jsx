@@ -73,7 +73,7 @@ const Profile = () => {
       ) {
         try {
           const response = await axios.get(
-            "http://localhost:8081/api/users/check-following",
+            "http://localhost:8081/api/friend/users/check-following",
             {
               params: {
                 followerId: user.reqUser.result.uid,

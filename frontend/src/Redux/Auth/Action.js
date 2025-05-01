@@ -24,7 +24,7 @@ export const loginAction = (data, showToast) => async (dispatch) => {
     const idToken = await user.getIdToken();
 
     // Gửi token đến backend
-    const res = await fetch("http://localhost:8080/auth/login", {
+    const res = await fetch("http://localhost:8080/api/auth/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -53,7 +53,7 @@ export const loginAction = (data, showToast) => async (dispatch) => {
 export const signupAction = (data, showToast) => async (dispatch) => {
   try {
     dispatch({ type: SIGNUP_REQUEST });
-    const res = await fetch("http://localhost:8080/auth/signup", {
+    const res = await fetch("http://localhost:8080/api/auth/signup", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

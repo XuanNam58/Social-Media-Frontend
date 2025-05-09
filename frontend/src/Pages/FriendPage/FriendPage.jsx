@@ -58,7 +58,7 @@ export default function FriendPage() {
           })
         );
         
-        console.log("FriendIds state:", friendIds);
+        console.log("FriendIds state:", friendIds.result);
         
         // Kiểm tra nếu có kết quả từ getFriendIdsAction
         if (friendIds?.result?.length > 0) {

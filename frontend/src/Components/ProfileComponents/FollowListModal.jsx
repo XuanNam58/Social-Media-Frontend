@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal,
   ModalOverlay,
@@ -15,28 +15,26 @@ import {
   Box,
   Flex,
   Text,
-  Button,
   VStack,
   Divider,
-  useDisclosure,
 } from "@chakra-ui/react";
 import { SearchIcon } from "@chakra-ui/icons";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { getAuth } from "firebase/auth";
 import {
-  getFollowerIdsAction,
   getFollowerListAction,
-  getFollowingIdsAction,
   getFollowingListAction,
 } from "../../Redux/User/Action";
 
 export default function FollowListModal({ isOpen, onClose, title, userId }) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [users, setUsers] = useState([]);
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { findUsersByIds, page, hasMore, followerIds, followingIds } =
-    useSelector((store) => store.user);
+  const { page, hasMore, followerList, followingList } = useSelector(
+    (store) => store.user
+  );
   const observer = useRef();
 
   // Get token
@@ -53,97 +51,89 @@ export default function FollowListModal({ isOpen, onClose, title, userId }) {
     getToken();
   }, [auth.currentUser]);
 
-  // Hàm tải thêm người dùng
+  // Reset users and load initial data when modal opens or title changes
+  useEffect(() => {
+    if (isOpen) {
+      setUsers([]);
+      setSearchQuery("");
+      if (token) {
+        dispatch(
+          title === "Followers"
+            ? getFollowerListAction({ token, followedId: userId, page: 1, size: 5 })
+            : getFollowingListAction({ token, followerId: userId, page: 1, size: 5 })
+        );
+      }
+    }
+  }, [isOpen, title, token, userId, dispatch]);
+
+  // Update users based on the relevant list
+  useEffect(() => {
+    const newData = title === "Followers" ? followerList.result : followingList.result;
+    if (newData && Array.isArray(newData) && newData.length > 0) {
+      setUsers((prevUsers) => {
+        const existingUids = new Set(prevUsers.map((user) => user.uid));
+        const uniqueNewData = newData.filter((user) => !existingUids.has(user.uid));
+        return [...prevUsers, ...uniqueNewData];
+      });
+    }
+  }, [title === "Followers" ? followerList.result : followingList.result, title]);
+
+  // Load more users
   const loadMoreUsers = useCallback(() => {
-    if (hasMore) {
+    if (hasMore && token && isOpen) {
       if (title === "Followers") {
         dispatch(
-          getFollowerIdsAction({
+          getFollowerListAction({
             token,
             followedId: userId,
             page: page + 1,
             size: 5,
           })
-        ).then(() => {
-          const newIds = followerIds.result;
-          dispatch(
-            getFollowerListAction({
-              token,
-              userIds: newIds,
-              type: "follower-list",
-            })
-          );
-        });
+        );
       } else if (title === "Following") {
         dispatch(
-          getFollowingIdsAction({
+          getFollowingListAction({
             token,
             followerId: userId,
             page: page + 1,
             size: 5,
           })
-        )
-          .then((action) => {
-            console.log("FollowingIds action:", action);
-            console.log("FollowingIds from store:", followingIds);
-            const newIds = followingIds?.result || [];
-            console.log("New following ids:", newIds);
-
-            console.log("Dispatching getFollowingListAction");
-            dispatch(
-              getFollowingListAction({
-                token,
-                userIds: newIds,
-                type: "following-list",
-              })
-            );
-          })
-          .catch((error) => {
-            console.error("Error in following chain:", error);
-          });
+        );
       }
     }
-  }, [
-    dispatch,
-    hasMore,
-    token,
-    title,
-    page,
-    userId,
-    followerIds,
-    followingIds,
-  ]);
+  }, [dispatch, hasMore, token, title, page, userId, isOpen]);
 
-  // Theo dõi phần tử cuối cùng
+  // Observe the last element for infinite scroll
   const lastUserElementRef = useCallback(
     (node) => {
       if (observer.current) observer.current.disconnect();
       observer.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && hasMore) {
+        if (entries[0].isIntersecting && hasMore && isOpen) {
           loadMoreUsers();
         }
       });
       if (node) observer.current.observe(node);
     },
-    [hasMore, loadMoreUsers]
+    [hasMore, loadMoreUsers, isOpen]
   );
-  //   const { user } = useSelector((store) => store);
 
   const handleUserClick = (username) => {
     if (username) {
       navigate(`/${username}`);
-      onClose(); // Đóng modal sau khi điều hướng
+      onClose();
     }
   };
 
-  if (!isOpen) return null;
+  // Filter users based on search query
+  const filteredUsers = useMemo(() => {
+    return users.filter(
+      (user) =>
+        user.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.fullName?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [users, searchQuery]);
 
-  // Filter followers based on search query
-  const filteredFollowers = (findUsersByIds.result || []).filter(
-    (user) =>
-      user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.fullName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  if (!isOpen) return null;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} isCentered size="sm">
@@ -181,38 +171,44 @@ export default function FollowListModal({ isOpen, onClose, title, userId }) {
 
         <ModalBody p={0} overflowY="auto" maxH="350px">
           <VStack spacing={0} align="stretch" divider={<Divider />}>
-            {filteredFollowers.map((userItem, index) => {
-              const isLastElement = filteredFollowers.length === index + 1;
-              return (
-                <Flex
-                  key={userItem.uid}
-                  p={4}
-                  alignItems="center"
-                  justifyContent="space-between"
-                  onClick={() => handleUserClick(userItem.username)}
-                  cursor="pointer"
-                  _hover={{ bg: "gray.50" }}
-                  ref={isLastElement ? lastUserElementRef : null}
-                >
-                  <Flex alignItems="center">
-                    <Avatar
-                      src={userItem.profilePicURL}
-                      name={userItem.fullName}
-                      size="md"
-                      mr={3}
-                    />
-                    <Box>
-                      <Text fontWeight="medium">{userItem.username}</Text>
-                      <Text fontSize="sm" color="gray.500">
-                        {userItem.fullName}
-                      </Text>
-                    </Box>
+            {filteredUsers.length === 0 ? (
+              <Text textAlign="center" py={4} color="gray.500">
+                No {title.toLowerCase()} found
+              </Text>
+            ) : (
+              filteredUsers.map((userItem, index) => {
+                const isLastElement = filteredUsers.length === index + 1;
+                return (
+                  <Flex
+                    key={userItem.uid}
+                    p={4}
+                    alignItems="center"
+                    justifyContent="space-between"
+                    onClick={() => handleUserClick(userItem.username)}
+                    cursor="pointer"
+                    _hover={{ bg: "gray.50" }}
+                    ref={isLastElement ? lastUserElementRef : null}
+                  >
+                    <Flex alignItems="center">
+                      <Avatar
+                        src={userItem.profilePicURL}
+                        name={userItem.fullName}
+                        size="md"
+                        mr={3}
+                      />
+                      <Box>
+                        <Text fontWeight="medium">{userItem.username}</Text>
+                        <Text fontSize="sm" color="gray.500">
+                          {userItem.fullName}
+                        </Text>
+                      </Box>
+                    </Flex>
                   </Flex>
-                </Flex>
-              );
-            })}
+                );
+              })
+            )}
             {hasMore && (
-              <Text textAlign="center" py={2}>
+              <Text textAlign="center" py={2} color="gray.500">
                 Loading more...
               </Text>
             )}

@@ -112,62 +112,45 @@ const ProfileUserDetailChange = ({
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [modalTile, setModalTitle] = useState("");
 
-  const handleOpenFollowers = () => {
-    console.log("Opening followers modal");
-    setModalTitle("Followers");
-    dispatch(
-      getFollowerIdsAction({
-        token,
-        followedId: userParam.uid,
-        page: 1,
-        size: 5,
-      })
-    )
-      .then((action) => {
-        if (action && action.payload && action.payload.ids) {
-          const newIds = action.payload.ids;
-          dispatch(
-            getFollowerListAction({
-              token,
-              userIds: newIds,
-              type: "follower-list",
-            })
-          );
-        }
-      })
-      .catch((error) => {
-        console.error("Error getting followers:", error);
-      });
-    onOpen();
+  const handleOpenFollowers = async () => {
+    try {
+      console.log("Opening followers modal");
+      setModalTitle("Followers");
+      
+      await dispatch(
+        getFollowerListAction({
+          token,
+          followedId: userParam.uid,
+          page: 1,
+          size: 5,
+        })
+      );
+      
+      onOpen();
+    } catch (error) {
+      console.error("Error fetching followers:", error);
+      // Xử lý lỗi ở đây
+    }
   };
-
-  const handleOpenFollowing = () => {
-    console.log("Opening following modal");
-    setModalTitle("Following");
-    dispatch(
-      getFollowingIdsAction({
-        token,
-        followerId: userParam.uid,
-        page: 1,
-        size: 5,
-      })
-    )
-      .then((action) => {
-        if (action && action.payload && action.payload.ids) {
-          const newIds = action.payload.ids;
-          dispatch(
-            getFollowingListAction({
-              token,
-              userIds: newIds,
-              type: "following-list",
-            })
-          );
-        }
-      })
-      .catch((error) => {
-        console.error("Error getting following:", error);
-      });
-    onOpen();
+  
+  const handleOpenFollowing = async () => {
+    try {
+      setModalTitle("Following");
+      
+      await dispatch(
+        getFollowingListAction({
+          token,
+          followerId: userParam.uid,
+          page: 1,
+          size: 5,
+        })
+      );
+      
+      onOpen();
+    } catch (error) {
+      console.error("Error fetching following:", error);
+      // Xử lý lỗi ở đây
+    }
   };
 
   return (

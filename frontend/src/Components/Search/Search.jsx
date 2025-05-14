@@ -1,35 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { X, ArrowLeft } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
-import { searchUserAction } from "../../Redux/User/Action";
 import useShowToast from "../../Redux/useShowToast";
 import { useNavigate } from "react-router-dom";
 import { getAuth } from "firebase/auth";
+import {
+  addSearchHistoryAction,
+  deleteAllSearchHistoryAction,
+  deleteSearchHistoryAction,
+  searchUserAction,
+} from "../../Redux/Search/Action";
 
 const Search = ({ onClose }) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [recentSearches, setRecentSearches] = useState([
-    {
-      id: 1,
-      username: "aadsfa",
-      fullName: "namm",
-    },
-    {
-      id: 2,
-      username: "asdfaf",
-      fullName: "luan",
-    },
-    {
-      id: 3,
-      username: "asdfasdf",
-      fullName: "thien",
-    },
-    {
-      id: 4,
-      username: "werqwe",
-      fullName: "asdf",
-    },
-  ]);
+  // const [recentSearch, setRecentSearch] = useState("");
+
   const dispatch = useDispatch();
   const showToast = useShowToast();
 
@@ -46,7 +31,8 @@ const Search = ({ onClose }) => {
     getToken();
   }, [auth.currentUser]);
 
-  const { user } = useSelector((store) => store);
+  const user = useSelector((store) => store.user);
+  const search = useSelector((store) => store.search);
   const navigate = useNavigate();
 
   const handleSearch = (e) => {
@@ -67,15 +53,32 @@ const Search = ({ onClose }) => {
   };
 
   const handleClearAll = () => {
-    setRecentSearches([]);
+    dispatch(deleteAllSearchHistoryAction({
+      searcherId: auth.currentUser.uid,
+      token: token
+    }))
   };
 
-  const handleRemoveFromRecent = (id) => {
-    setRecentSearches(recentSearches.filter((search) => search.id !== id));
+  const handleRemoveFromRecent = (targetUserId) => {
+    search.recentSearch.result.filter((search) => search.uid !== targetUserId);
+    dispatch(
+      deleteSearchHistoryAction({
+        searcherId: auth.currentUser.uid, // uid của người tìm
+        targetUserId: targetUserId, // uid của người được tìm
+        token: token
+      })
+    );
+
+    console.log("deleteSearchHistoryAction", auth.currentUser.uid, " ", targetUserId)
   };
 
-  const handleUserClick = (username) => {
+  const handleUserClick = (username, targetUserId) => {
     navigate(`/${username}`);
+    dispatch(addSearchHistoryAction({
+      searcherId: auth.currentUser.uid,
+      targetUserId: targetUserId,
+      token: token
+    }))
     onClose(); // Đóng search panel sau khi click
   };
 
@@ -115,33 +118,35 @@ const Search = ({ onClose }) => {
         </div>
 
         {/* Search Results */}
-        {searchQuery && user.searchUser && user.searchUser.result.length > 0 && (
-          <div className="space-y-3">
-            {user.searchUser.result.map((user) => (
-              <div
-                key={user.username}
-                onClick={() => handleUserClick(user.username)}
-                className="flex items-center justify-between hover:bg-gray-50 p-2 rounded-lg cursor-pointer"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gray-200 rounded-full">
-                    {user.profilePicURL && (
-                      <img
-                        src={user.profilePicURL}
-                        alt={user.username}
-                        className="w-full h-full rounded-full object-cover"
-                      />
-                    )}
-                  </div>
-                  <div>
-                    <div className="font-semibold">{user.username}</div>
-                    <div className="text-gray-500">{user.fullName}</div>
+        {searchQuery &&
+          search.searchUser &&
+          search.searchUser.result.length > 0 && (
+            <div className="space-y-3">
+              {search.searchUser.result.map((user) => (
+                <div
+                  key={user.username}
+                  onClick={() => handleUserClick(user.username, user.uid)}
+                  className="flex items-center justify-between hover:bg-gray-50 p-2 rounded-lg cursor-pointer"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 bg-gray-200 rounded-full">
+                      {user.profilePicURL && (
+                        <img
+                          src={user.profilePicURL}
+                          alt={user.username}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-semibold">{user.username}</div>
+                      <div className="text-gray-500">{user.fullName}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
 
         {/* Recent Searches */}
         {!searchQuery && (
@@ -158,14 +163,22 @@ const Search = ({ onClose }) => {
 
             {/* Recent Search List */}
             <div className="space-y-3">
-              {recentSearches.map((search) => (
+              {search?.recentSearch?.result.map((search) => (
                 <div
-                  key={search.id}
-                  onClick={() => handleUserClick(search.username)}
+                  key={search.uid}
+                  onClick={() => handleUserClick(search.username, search.uid)}
                   className="flex items-center justify-between hover:bg-gray-50 p-2 rounded-lg cursor-pointer"
                 >
                   <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+                  <div className="w-12 h-12 bg-gray-200 rounded-full">
+                      {search.profilePicURL && (
+                        <img
+                          src={search.profilePicURL}
+                          alt={search.username}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      )}
+                    </div>
                     <div>
                       <div className="font-semibold">{search.username}</div>
                       <div className="text-gray-500">{search.fullName}</div>
@@ -174,7 +187,7 @@ const Search = ({ onClose }) => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleRemoveFromRecent(search.id);
+                      handleRemoveFromRecent(search.uid);
                     }}
                     className="text-gray-500 hover:text-gray-700"
                   >

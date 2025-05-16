@@ -5,7 +5,7 @@ import {
   SEARCH_USER,
 } from "./ActionType";
 
-const SEARCH_API = "http://localhost:8080/api/auth/search";
+const SEARCH_API = "http://localhost:9191/api/auth/search";
 
 export const searchUserAction = (data) => async (dispatch) => {
   try {

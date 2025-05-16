@@ -39,7 +39,7 @@ const Signup = () => {
     } else {
       try {
         const res = await fetch(
-          `http://localhost:8080/auth/check-username?username=${inputs.username}`,
+          `http://localhost:9191/api/auth/check-username?username=${inputs.username}`,
           {
             method: "GET",
             headers: {

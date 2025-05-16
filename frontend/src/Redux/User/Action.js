@@ -11,8 +11,8 @@ import {
   UNFOLLOW_USER,
 } from "./ActionType";
 
-const AUTH_API = "http://localhost:8080/api/auth/users";
-const FRIEND_API = "http://localhost:8081/api/friend/users";
+const AUTH_API = "http://localhost:9191/api/auth/users";
+const FRIEND_API = "http://localhost:9191/api/friend/users";
 export const followUserAction = (data) => async (dispatch) => {
   try {
     console.log("Follow user data:", data);

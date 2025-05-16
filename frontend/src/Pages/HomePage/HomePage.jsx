@@ -31,7 +31,7 @@ const HomePage = () => {
       const token = await getToken();
       if (!token) return;
       try {
-        const response = await fetch("http://localhost:8080/api/auth/users/req", {
+        const response = await fetch("http://localhost:9191/api/auth/users/req", {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,

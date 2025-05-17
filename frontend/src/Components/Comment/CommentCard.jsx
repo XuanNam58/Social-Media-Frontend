@@ -6,77 +6,72 @@ import { getAuth } from "firebase/auth";
 const CommentCard = ({ comment }) => {
   const { commentId, username, content, date, fullName, profilePicURL } = comment;
 
-  const [isCommentLike, setIsCommentLike] = useState(false);
-  const [likeCount, setLikeCount] = useState(23);
-  const [showReplies, setShowReplies] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(23); // TODO: Replace with real like count
   const [replies, setReplies] = useState([]);
+  const [showReplies, setShowReplies] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [page, setPage] = useState(1);
-  const [hasMoreReplies, setHasMoreReplies] = useState(true);
-  const [loadingReplies, setLoadingReplies] = useState(false);
-  const [userComment, setUserComment] = useState({});
-   const [userIndex, setUserIndex] = useState({});
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState({});
 
-   //Lay token
-   const getToken = async () => {
-       const auth = getAuth();
-       const user = auth.currentUser;
-       if (user) {
-         const token = await user.getIdToken();
-         return token;
-       } else {
-         console.error("User chưa đăng nhập!");
-         return null;
-       }
-     };
-   
-     useEffect(() => {
-       // Lấy thông tin user khi component mount
-       const fetchUser = async () => {
-         const token = await getToken();
-         if (!token) return;
-         try {
-           const response = await fetch("http://localhost:8080/api/users/req", {
-             method: "GET",
-             headers: {
-               "Authorization": `Bearer ${token}`,
-               "Content-Type": "application/json",
-             },
-           });
-           const dataUser = await response.json();
-           setUserIndex(dataUser);
-         } catch (error) {
-           console.error("Lỗi khi lấy thông tin user:", error);
-         }
-       };
-       fetchUser();
-     }, []); // Chạy khi component mount
-
-    
-
-
-  const handleLikeComment = () => {
-    setIsCommentLike(!isCommentLike);
-    setLikeCount(isCommentLike ? likeCount - 1 : likeCount + 1);
+  // Lấy token Firebase
+  const getToken = async () => {
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      console.error("User chưa đăng nhập!");
+      return null;
+    }
+    return await currentUser.getIdToken();
   };
 
-  const handleToggleReplies = async () => {
-    setShowReplies(!showReplies);
+  // Lấy thông tin người dùng
+  useEffect(() => {
+    const fetchUser = async () => {
+      const token = await getToken();
+      if (!token) return;
+      try {
+        const res = await fetch("http://localhost:8080/api/auth/users/req", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+        const data = await res.json();
+        setUser(data.result);
+      } catch (err) {
+        console.error("Lỗi khi lấy thông tin user:", err);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  const handleToggleLike = () => {
+    setIsLiked((prev) => !prev);
+    setLikeCount((prev) => (isLiked ? prev - 1 : prev + 1));
+  };
+
+  const handleToggleReplies = () => {
+    setShowReplies((prev) => !prev);
     if (!showReplies && replies.length === 0) {
-      await loadMoreReplies(1); // Lần đầu load page 1
+      loadReplies(1);
     }
   };
 
-  const loadMoreReplies = async (requestedPage = page) => {
-    if (loadingReplies || !hasMoreReplies) return;
+  const loadReplies = async (requestedPage) => {
+    if (loading || !hasMore) return;
+
     const token = await getToken();
     if (!token) return;
-    setLoadingReplies(true);
+
+    setLoading(true);
     try {
-      const response = await axios.get("http://localhost:9000/replyComments", {
-        method: "GET",
+      const res = await axios.get("http://localhost:9000/replyComments", {
         headers: {
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         params: {
@@ -86,53 +81,40 @@ const CommentCard = ({ comment }) => {
         },
       });
 
-      const newReplies = response.data; // response trả về mảng replies
-      if (newReplies.length < 5) {
-        setHasMoreReplies(false);
-      }
-
+      const newReplies = res.data;
       setReplies((prev) => [...prev, ...newReplies]);
-      setPage(requestedPage + 1); // Tăng page lên cho lần sau
-    } catch (error) {
-      console.error("Error loading replies:", error);
+      setPage(requestedPage + 1);
+      if (newReplies.length < 5) setHasMore(false);
+    } catch (err) {
+      console.error("Error loading replies:", err);
     } finally {
-      setLoadingReplies(false);
+      setLoading(false);
     }
-  };
-
-  const handleReplyChange = (e) => {
-    setReplyText(e.target.value);
   };
 
   const handleSendReply = async () => {
-    if (replyText.trim() === "") return;
-  
-    const replyData = {
+    if (!replyText.trim()) return;
+
+    const newReply = {
       commentID: commentId,
-      username: userIndex.username,
+      username: user.username,
       content: replyText,
     };
-  
+
     try {
-      const response = await axios.post("http://localhost:9000/api/comments/reply", replyData);
-      const newReply = response.data;
-      setReplies([...replies, newReply]);
+      const res = await axios.post("http://localhost:9000/api/comments/reply", newReply);
+      setReplies((prev) => [...prev, res.data]);
       setReplyText("");
-    } catch (error) {
-      console.error("Error sending reply:", error);
+    } catch (err) {
+      console.error("Error sending reply:", err);
     }
   };
-  
 
   return (
     <div className="border-b pb-3">
       <div className="flex items-center justify-between py-2">
         <div className="flex items-center">
-          <img
-            className="w-9 h-9 rounded-full"
-            src= {profilePicURL}
-            alt=""
-          />
+          <img src={profilePicURL} alt="" className="w-9 h-9 rounded-full" />
           <div className="ml-3">
             <p>
               <span className="font-semibold">{fullName}</span>
@@ -147,37 +129,31 @@ const CommentCard = ({ comment }) => {
             </div>
           </div>
         </div>
-        {isCommentLike ? (
+        {isLiked ? (
           <AiFillHeart
-            onClick={handleLikeComment}
-            className="text-xs hover:opacity-50 cursor-pointer text-red-500"
+            onClick={handleToggleLike}
+            className="text-xs text-red-500 hover:opacity-50 cursor-pointer"
           />
         ) : (
           <AiOutlineHeart
-            onClick={handleLikeComment}
+            onClick={handleToggleLike}
             className="text-xs hover:opacity-50 cursor-pointer"
           />
         )}
       </div>
 
       {showReplies && (
-      <div className="pl-5 mt-2">
+        <div className="pl-5 mt-2">
+          {replies.length === 0 && !loading && (
+            <p className="text-sm text-gray-500 italic mb-2">No replies yet.</p>
+          )}
 
-        {/* Hiển thị nếu KHÔNG có reply */}
-        {replies.length === 0 && !loadingReplies && (
-          <p className="text-sm text-gray-500 italic mb-2">Not reply yet.</p>
-        )}
-
-        {/* Danh sách reply nếu có */}
-        {replies.map((reply) => {
-          
-
-          return (
+          {replies.map((reply) => (
             <div key={reply.id} className="flex items-center space-x-3 mb-2">
               <img
-                className="w-7 h-7 rounded-full"
                 src={reply.profilePicURL}
                 alt=""
+                className="w-7 h-7 rounded-full"
               />
               <div>
                 <p>
@@ -186,39 +162,34 @@ const CommentCard = ({ comment }) => {
                 </p>
               </div>
             </div>
-          );
-        })}
+          ))}
 
+          {hasMore && replies.length > 0 && (
+            <button
+              onClick={() => loadReplies(page)}
+              className="text-blue-500 text-sm hover:underline mt-1"
+            >
+              {loading ? "Loading..." : "Load more replies"}
+            </button>
+          )}
 
-        {/* Load more button */}
-        {hasMoreReplies && replies.length > 0 && (
-          <button
-            onClick={() => loadMoreReplies(page)}
-            className="text-blue-500 text-sm hover:underline mt-1"
-          >
-            {loadingReplies ? "Loading..." : "Load more replies"}
-          </button>
-        )}
-
-        {/* Input reply */}
-        <div className="flex items-center mt-3">
-          <input
-            type="text"
-            value={replyText}
-            onChange={handleReplyChange}
-            placeholder="Reply this comment..."
-            className="border rounded-full px-3 py-1 w-full text-sm"
-          />
-          <button
-            onClick={handleSendReply}
-            className="ml-2 text-blue-500 hover:opacity-70"
-          >
-            Send
-          </button>
+          <div className="flex items-center mt-3">
+            <input
+              type="text"
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              placeholder="Reply to this comment..."
+              className="border rounded-full px-3 py-1 w-full text-sm"
+            />
+            <button
+              onClick={handleSendReply}
+              className="ml-2 text-blue-500 hover:opacity-70"
+            >
+              Send
+            </button>
+          </div>
         </div>
-      </div>
-    )}
-
+      )}
     </div>
   );
 };

@@ -39,7 +39,7 @@ const HomePage = () => {
           },
         });
         const dataUser = await response.json();
-        setUserIndex(dataUser);
+        setUserIndex(dataUser.result);
       } catch (error) {
         console.error("Lỗi khi lấy thông tin user:", error);
       }
@@ -80,7 +80,7 @@ const HomePage = () => {
       if (!token) return;
       setLoading(true);
       try {
-        const response = await fetch(`http://localhost:9000/posts?page=${page}&size=5`, {
+        const response = await fetch(`http://localhost:9000/api/posts?page=${page}&size=5`, {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,

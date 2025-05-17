@@ -45,7 +45,7 @@ useEffect(() => {
     const token = await getToken();
     if (!token) return;
     try {
-      const response = await fetch("http://localhost:8080/api/users/req", {
+      const response = await fetch("http://localhost:8080/api/auth/users/req", {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -53,7 +53,7 @@ useEffect(() => {
         },
       });
       const dataUser = await response.json();
-      setUserIndex(dataUser);
+      setUserIndex(dataUser.result);
     } catch (error) {
       console.error("Lỗi khi lấy thông tin user:", error);
     }

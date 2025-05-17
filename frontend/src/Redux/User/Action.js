@@ -1,19 +1,18 @@
 import axios from "axios";
 import {
   FOLLOW_USER,
-  GET_FOLLOWER_IDS,
-  GET_FOLLOWING_IDS,
-  GET_FRIEND_IDS,
+  GET_FOLLOWER_LIST,
+  GET_FOLLOWING_LIST,
+  GET_FRIEND_LIST,
   GET_UID_BY_USERNAME,
   GET_USER_BY_USERNAME,
   GET_USERS_BY_USER_IDS,
   REQ_USER,
-  SEARCH_USER,
   UNFOLLOW_USER,
 } from "./ActionType";
 
-const AUTH_API = "http://localhost:8080/api/auth/users";
-const FRIEND_API = "http://localhost:8081/api/friend/users";
+const AUTH_API = "http://localhost:9191/api/auth/users";
+const FRIEND_API = "http://localhost:9191/api/friend/users";
 export const followUserAction = (data) => async (dispatch) => {
   try {
     console.log("Follow user data:", data);
@@ -65,20 +64,6 @@ export const unFollowUserAction = (data) => async (dispatch) => {
   }
 };
 
-export const searchUserAction = (data) => async (dispatch) => {
-  try {
-    const res = await axios.get(`${AUTH_API}/search?q=${data.query}`, {
-      headers: {
-        Authorization: `Bearer ${data.token}`,
-      },
-    });
-    console.log("Search user response:", res.data);
-    dispatch({ type: SEARCH_USER, payload: res.data });
-  } catch (error) {
-    console.log("Error searching user: ", error);
-    data.showToast("Error", "Error searching user: " + error.message, "error");
-  }
-};
 
 export const getUserByUsernameAction =
   (username, token) => async (dispatch) => {
@@ -144,7 +129,7 @@ export const getUsersByUserIds = (data) => async (dispatch) => {
 };
 
 // --------------------FRIEND-------------------
-export const getFriendIdsAction = (data) => async (dispatch) => {
+export const getFriendListAction = (data) => async (dispatch) => {
   try {
     const res = await axios.get(`${FRIEND_API}/friends/${data.uid}`, {
       params: {
@@ -155,32 +140,26 @@ export const getFriendIdsAction = (data) => async (dispatch) => {
         Authorization: `Bearer ${data.token}`,
       },
     });
-    console.log("Get friend id list:", res.data);
-    dispatch({ type: GET_FRIEND_IDS, payload: res.data });
-  } catch (error) {
-    console.log("Get friend id list: ", error);
-    // Có thể thêm showToast ở đây nếu cần
-  }
-};
-
-export const getFriendListAction = (data) => async (dispatch) => {
-  try {
-    const res = await axios.get(`${AUTH_API}/${data.type}`, {
-      params: { ids: data.userIds.join(",") },
-      headers: {
-        Authorization: `Bearer ${data.token}`,
-      },
-    });
     console.log("Get friend list:", res.data);
-    dispatch({ type: GET_USERS_BY_USER_IDS, payload: res.data });
+    const action = {
+      type: GET_FRIEND_LIST,
+      payload: {
+        result: res.data.result,
+        page: data.page,
+        hasMore: res.data.result.length === data.size,
+      },
+    };
+    dispatch(action);
+    return res.data.result; // Trả về kết quả trực tiếp
   } catch (error) {
     console.log("Get friend list: ", error);
-    // Có thể thêm showToast ở đây nếu cần
+    throw error;
   }
 };
 
+
 // --------------------FOLLOWER-------------------
-export const getFollowerIdsAction = (data) => async (dispatch) => {
+export const getFollowerListAction = (data) => async (dispatch) => {
   try {
     const res = await axios.get(`${FRIEND_API}/followers/${data.followedId}`, {
       params: {
@@ -191,11 +170,11 @@ export const getFollowerIdsAction = (data) => async (dispatch) => {
         Authorization: `Bearer ${data.token}`,
       },
     });
-    console.log("getFollowerIdsAction response:", res.data);
+    console.log("get follower list response:", res.data);
     const action = {
-      type: GET_FOLLOWER_IDS,
+      type: GET_FOLLOWER_LIST,
       payload: {
-        ids: res.data.result,
+        result: res.data.result,
         page: data.page,
         hasMore: res.data.result.length === data.size,
       },
@@ -203,32 +182,13 @@ export const getFollowerIdsAction = (data) => async (dispatch) => {
     dispatch(action);
     return action; // Trả về action để có thể sử dụng .then()
   } catch (error) {
-    console.error("Error in getFollowerIdsAction:", error);
+    console.error("Error in get follower list:", error);
     throw error;
   }
 };
 
-export const getFollowerListAction = (data) => async (dispatch) => {
-  try {
-    const res = await axios.get(`${AUTH_API}/${data.type}`, {
-      params: { ids: data.userIds.join(",") },
-      headers: {
-        Authorization: `Bearer ${data.token}`,
-      },
-    });
-    console.log("Get follower list:", res.data);
-    dispatch({
-      type: GET_USERS_BY_USER_IDS,
-      payload: res.data,
-    });
-  } catch (error) {
-    console.log("Get follower list: ", error);
-    // Có thể thêm showToast ở đây nếu cần
-  }
-};
-
 // --------------------FOLLOWING-------------------
-export const getFollowingIdsAction = (data) => async (dispatch) => {
+export const getFollowingListAction = (data) => async (dispatch) => {
   try {
     const res = await axios.get(`${FRIEND_API}/following/${data.followerId}`, {
       params: {
@@ -239,11 +199,11 @@ export const getFollowingIdsAction = (data) => async (dispatch) => {
         Authorization: `Bearer ${data.token}`,
       },
     });
-    console.log("getFollowingIdsAction response:", res.data);
+    console.log("get following list response:", res.data);
     const action = {
-      type: GET_FOLLOWING_IDS,
+      type: GET_FOLLOWING_LIST,
       payload: {
-        ids: res.data.result,
+        result: res.data.result,
         page: data.page,
         hasMore: res.data.result.length === data.size,
       },
@@ -251,23 +211,8 @@ export const getFollowingIdsAction = (data) => async (dispatch) => {
     dispatch(action);
     return action; // Trả về action để có thể sử dụng .then()
   } catch (error) {
-    console.error("Error in getFollowingIdsAction:", error);
+    console.error("Error in get following list:", error);
     throw error;
   }
 };
 
-export const getFollowingListAction = (data) => async (dispatch) => {
-  try {
-    const res = await axios.get(`${AUTH_API}/${data.type}`, {
-      params: { ids: data.userIds.join(",") },
-      headers: {
-        Authorization: `Bearer ${data.token}`,
-      },
-    });
-    console.log("Get following list:", res.data);
-    dispatch({ type: GET_USERS_BY_USER_IDS, payload: res.data });
-  } catch (error) {
-    console.log("Get following list: ", error);
-    // Có thể thêm showToast ở đây nếu cần
-  }
-};

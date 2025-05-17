@@ -1,13 +1,12 @@
 import {
   FOLLOW_USER,
-  GET_FOLLOWER_IDS,
-  GET_FOLLOWING_IDS,
-  GET_FRIEND_IDS,
+  GET_FOLLOWER_LIST,
+  GET_FOLLOWING_LIST,
+  GET_FRIEND_LIST,
   GET_UID_BY_USERNAME,
   GET_USER_BY_USERNAME,
   GET_USERS_BY_USER_IDS,
   REQ_USER,
-  SEARCH_USER,
   UNFOLLOW_USER,
 } from "./ActionType";
 
@@ -16,17 +15,16 @@ const initialValue = {
   findUsersByIds: [],
   followUser: null,
   unFollowUser: null,
-  searchUser: null,
   userByUsername: null,
   uid: null,
-  friendIds: [],
-  followerIds: [],
-  followingIds: [],
-
+  friendList: { result: [], page: 1, hasMore: true },
+  followerList: { result: [], page: 1, hasMore: true },
+  followingList: { result: [], page: 1, hasMore: true },
   page: 1,
   hasMore: true,
   modalType: null,
 };
+
 export const UserReducer = (state = initialValue, action) => {
   switch (action.type) {
     case REQ_USER:
@@ -43,35 +41,56 @@ export const UserReducer = (state = initialValue, action) => {
       return { ...state, followUser: action.payload };
     case UNFOLLOW_USER:
       return { ...state, unFollowUser: action.payload };
-    case SEARCH_USER:
-      return { ...state, searchUser: action.payload };
     case GET_USER_BY_USERNAME:
       return { ...state, userByUsername: action.payload };
     case GET_UID_BY_USERNAME:
       return { ...state, uid: action.payload };
-    case GET_FRIEND_IDS:
-      return { ...state, friendIds: action.payload };
-    case GET_FOLLOWER_IDS:
+    case GET_FRIEND_LIST:
       return {
         ...state,
-        followerIds:
-          action.payload.page === 1
-            ? action.payload.ids
-            : [...state.followerIds, ...action.payload.ids],
+        friendList: {
+          ...state.friendList,
+          result:
+            action.payload.page === 1
+              ? action.payload.result || []
+              : [...state.friendList.result, ...(action.payload.result || [])],
+          page: action.payload.page,
+          hasMore: action.payload.hasMore,
+        },
         page: action.payload.page,
         hasMore: action.payload.hasMore,
       };
-    case GET_FOLLOWING_IDS:
+    case GET_FOLLOWER_LIST:
       return {
         ...state,
-        followingIds:
-          action.payload.page === 1
-            ? action.payload.ids
-            : [...state.followingIds, ...action.payload.ids],
+        followerList: {
+          ...state.friendList,
+          result:
+            action.payload.page === 1
+              ? action.payload.result || []
+              : [...state.followerList.result, ...(action.payload.result || [])],
+          page: action.payload.page,
+          hasMore: action.payload.hasMore,
+        },
         page: action.payload.page,
         hasMore: action.payload.hasMore,
       };
+    case GET_FOLLOWING_LIST:
+      return {
+        ...state,
+        followingList: {
+          ...state.followingList,
+          result:
+            action.payload.page === 1
+              ? action.payload.result || []
+              : [...state.followingList.result, ...(action.payload.result || [])],
+          page: action.payload.page,
+          hasMore: action.payload.hasMore,
+        },
+        page: action.payload.page,
+        hasMore: action.payload.hasMore,
+      };
+    default:
+      return state;
   }
-
-  return state;
 };

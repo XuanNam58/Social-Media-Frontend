@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { getAuth, signOut } from "firebase/auth";
 import { auth } from "../../firebase/firebase";
+import { getRecentSearchAction } from "../../Redux/Search/Action";
 
 const Sidebar = () => {
   const [activeTab, setActiveTab] = useState();
@@ -33,7 +34,6 @@ const Sidebar = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
   const [userIndex, setUserIndex] = useState(null);
-  const stompClientRef = useRef(null);
 
   const getToken = async () => {
     const auth = getAuth();
@@ -91,6 +91,11 @@ const Sidebar = () => {
 
   const handleTabClick = (title) => {
     if (title === "Search") {
+      const auth = getAuth()
+      dispatch(getRecentSearchAction({
+        searcherId: auth.currentUser.uid,
+        token: token
+    }))
       setShowSearch(!showSearch);
       if (showNotification) setShowNotification(false); // Đóng notification nếu đang mở
       return;

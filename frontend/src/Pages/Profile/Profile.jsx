@@ -6,7 +6,6 @@ import { getAuth } from "firebase/auth";
 import { useDispatch, useSelector } from "react-redux";
 import {
   followUserAction,
-  getFollowerIdsAction,
   getUidByUsernameAction,
   getUserByUsernameAction,
   getUserProfileAction,
@@ -98,6 +97,8 @@ const Profile = () => {
     token,
     user.reqUser?.result?.uid,
     user.userByUsername?.result?.uid,
+    user.followUser,
+    user.unFollowUser,
   ]);
 
   // Xác định người dùng cần hiển thị
@@ -121,6 +122,7 @@ const Profile = () => {
       };
 
       await dispatch(followUserAction(data));
+      setIsFollowing(true);
 
       // Cập nhật lại thông tin người dùng sau khi follow
       if (username) {
@@ -146,6 +148,7 @@ const Profile = () => {
       };
 
       await dispatch(unFollowUserAction(data));
+      setIsFollowing(false);
 
       // Cập nhật lại thông tin người dùng sau khi unfollow
       if (username) {

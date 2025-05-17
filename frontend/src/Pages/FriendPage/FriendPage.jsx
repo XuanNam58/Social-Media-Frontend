@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  getFriendIdsAction,
   getFriendListAction,
 } from "../../Redux/User/Action";
 import { useNavigate } from "react-router-dom";
@@ -34,8 +33,8 @@ export default function FriendPage() {
   const { user } = useSelector((store) => store);
   const navigate = useNavigate();
 
-  // Thêm selector để theo dõi friendIds
-  const friendIds = useSelector((store) => store.user.friendIds);
+  // Thêm selector để theo dõi friendIds và hasMore
+  const { friendIds, hasMore } = useSelector((store) => store.user);
 
   const handleUserClick = (username) => {
     navigate(`/${username}`);
@@ -48,29 +47,15 @@ export default function FriendPage() {
       
       setIsLoading(true);
       try {
-        // Gọi action đầu tiên
         await dispatch(
-          getFriendIdsAction({
+          getFriendListAction({
             uid: user.reqUser.result.uid,
             page: currentPage,
             size: friendsPerPage,
             token: token,
           })
         );
-        
-        console.log("FriendIds state:", friendIds);
-        
-        // Kiểm tra nếu có kết quả từ getFriendIdsAction
-        if (friendIds?.result?.length > 0) {
-          await dispatch(
-            getFriendListAction({
-              userIds: friendIds.result,
-              type: "friend-list",
-              token: token,
-            })
-          );
-          console.log("friend list: ", user.findUsersByIds.result)
-        }
+        console.log("friend list: ", user.friendList.result);
       } catch (error) {
         console.error("Error loading friends:", error);
       } finally {
@@ -79,9 +64,9 @@ export default function FriendPage() {
     };
 
     loadFriends();
-  }, [token, user.reqUser?.result?.uid, currentPage, friendsPerPage, dispatch, friendIds]);
+  }, [token, user.reqUser?.result?.uid, currentPage, friendsPerPage, dispatch]);
 
-  const friends = user?.findUsersByIds?.result || [];
+  const friends = user?.friendList?.result || [];
   // Filter friends based on search query
   const filteredFriends = friends.filter(
     (friend) =>
@@ -89,18 +74,11 @@ export default function FriendPage() {
       friend?.fullName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Calculate pagination
-  const totalPages = Math.ceil(filteredFriends.length / friendsPerPage);
-  const indexOfLastFriend = currentPage * friendsPerPage;
-  const indexOfFirstFriend = indexOfLastFriend - friendsPerPage;
-  const currentFriends = filteredFriends.slice(
-    indexOfFirstFriend,
-    indexOfLastFriend
-  );
-
   // Pagination handlers
   const goToNextPage = () => {
-    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+    if (hasMore) {
+      setCurrentPage((prev) => prev + 1);
+    }
   };
 
   const goToPreviousPage = () => {
@@ -132,8 +110,8 @@ export default function FriendPage() {
 
       {/* Friends list */}
       <div className="bg-white rounded-lg shadow">
-        {currentFriends.length > 0 ? (
-          currentFriends.map((friend) => (
+        {filteredFriends.length > 0 ? (
+          filteredFriends.map((friend) => (
             <div
               key={friend.uid}
               className="flex items-center justify-between p-4 hover:bg-gray-50 border-b last:border-b-0 cursor-pointer"
@@ -150,9 +128,9 @@ export default function FriendPage() {
                   <p className="text-sm text-gray-500">{friend.fullName}</p>
                 </div>
               </div>
-              <button className="px-5 py-1.5 bg-blue-500 text-white text-sm rounded-full hover:bg-blue-600 transition-colors">
+              {/* <button className="px-5 py-1.5 bg-blue-500 text-white text-sm rounded-full hover:bg-blue-600 transition-colors">
                 Follow
-              </button>
+              </button> */}
             </div>
           ))
         ) : (
@@ -161,37 +139,35 @@ export default function FriendPage() {
       </div>
 
       {/* Pagination */}
-      {filteredFriends.length > friendsPerPage && (
-        <div className="flex items-center justify-between mt-6">
-          <button
-            onClick={goToPreviousPage}
-            disabled={currentPage === 1}
-            className={`flex items-center px-4 py-2 rounded ${
-              currentPage === 1
-                ? "text-gray-300 cursor-not-allowed"
-                : "text-blue-500 hover:bg-blue-50"
-            }`}
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Previous
-          </button>
-          <span className="text-sm text-gray-600">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            onClick={goToNextPage}
-            disabled={currentPage === totalPages}
-            className={`flex items-center px-4 py-2 rounded ${
-              currentPage === totalPages
-                ? "text-gray-300 cursor-not-allowed"
-                : "text-blue-500 hover:bg-blue-50"
-            }`}
-          >
-            Next
-            <ChevronRight className="h-4 w-4 ml-1" />
-          </button>
-        </div>
-      )}
+      <div className="flex items-center justify-between mt-6">
+        <button
+          onClick={goToPreviousPage}
+          disabled={currentPage === 1}
+          className={`flex items-center px-4 py-2 rounded ${
+            currentPage === 1
+              ? "text-gray-300 cursor-not-allowed"
+              : "text-blue-500 hover:bg-blue-50"
+          }`}
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          Previous
+        </button>
+        <span className="text-sm text-gray-600">
+          Page {currentPage}
+        </span>
+        <button
+          onClick={goToNextPage}
+          disabled={!hasMore}
+          className={`flex items-center px-4 py-2 rounded ${
+            !hasMore
+              ? "text-gray-300 cursor-not-allowed"
+              : "text-blue-500 hover:bg-blue-50"
+          }`}
+        >
+          Next
+          <ChevronRight className="h-4 w-4 ml-1" />
+        </button>
+      </div>
     </div>
   );
 }

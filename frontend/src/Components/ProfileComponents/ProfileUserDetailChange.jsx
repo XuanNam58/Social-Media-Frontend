@@ -3,11 +3,8 @@ import FollowListModal from "./FollowListModal";
 import { useDisclosure } from "@chakra-ui/react";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  getFollowerIdsAction,
   getFollowerListAction,
-  getFollowingIdsAction,
   getFollowingListAction,
-  getUsersByUserIds,
 } from "../../Redux/User/Action";
 import { getAuth } from "firebase/auth";
 const profile = {

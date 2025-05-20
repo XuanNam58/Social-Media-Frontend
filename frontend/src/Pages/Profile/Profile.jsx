@@ -6,7 +6,6 @@ import { getAuth } from "firebase/auth";
 import { useDispatch, useSelector } from "react-redux";
 import {
   followUserAction,
-  getUidByUsernameAction,
   getUserByUsernameAction,
   getUserProfileAction,
   unFollowUserAction,
@@ -54,7 +53,7 @@ const Profile = () => {
         setLoading(false);
       } catch (error) {
         console.log("Error fetching user data:", error);
-        setError("Đã xảy ra lỗi khi tải dữ liệu");
+        setError("Loading error");
         setLoading(false);
       }
     };
@@ -72,7 +71,7 @@ const Profile = () => {
       ) {
         try {
           const response = await axios.get(
-            "http://localhost:8081/api/friend/users/check-following",
+            "http://localhost:9191/api/friend/users/check-following",
             {
               params: {
                 followerId: user.reqUser.result.uid,
@@ -92,14 +91,30 @@ const Profile = () => {
 
     checkFollowingStatus();
   }, [
-    user.reqUser?.result?.followingNum,
-    user.userByUsername?.result?.followerNum,
     token,
     user.reqUser?.result?.uid,
     user.userByUsername?.result?.uid,
-    user.followUser,
-    user.unFollowUser,
+    user.followUser?.message,
+    user.unFollowUser?.message,
+    user.userByUsername?.result?.followerNum,
+    user.reqUser?.result?.followingNum,
+    isFollowing
   ]);
+
+  // Thêm useEffect để theo dõi thay đổi của user data
+  useEffect(() => {
+    const updateUserData = async () => {
+      if (token && username) {
+        try {
+          await dispatch(getUserByUsernameAction(username, token));
+        } catch (error) {
+          console.error("Error updating user data:", error);
+        }
+      }
+    };
+
+    updateUserData();
+  }, [user.followUser?.message, user.unFollowUser?.message, token, username]);
 
   // Xác định người dùng cần hiển thị
   const profileUser =
@@ -110,7 +125,6 @@ const Profile = () => {
   const handleFollow = async () => {
     try {
       console.log("Follow user:", auth.currentUser.uid);
-      console.log("Followed user:", user.uid);
 
       const data = {
         followerId: auth.currentUser.uid,
@@ -121,10 +135,13 @@ const Profile = () => {
         },
       };
 
+      // Dispatch follow action and wait for it to complete
       await dispatch(followUserAction(data));
+      
+      // Update following state immediately
       setIsFollowing(true);
 
-      // Cập nhật lại thông tin người dùng sau khi follow
+      // Force a re-fetch of user data
       if (username) {
         await dispatch(getUserByUsernameAction(username, token));
       } else {
@@ -147,10 +164,13 @@ const Profile = () => {
         },
       };
 
+      // Dispatch unfollow action and wait for it to complete
       await dispatch(unFollowUserAction(data));
+      
+      // Update following state immediately
       setIsFollowing(false);
 
-      // Cập nhật lại thông tin người dùng sau khi unfollow
+      // Force a re-fetch of user data
       if (username) {
         await dispatch(getUserByUsernameAction(username, token));
       } else {

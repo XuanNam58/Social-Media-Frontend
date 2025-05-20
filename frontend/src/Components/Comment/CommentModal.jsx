@@ -37,11 +37,30 @@ const CommentModal = ({
   const [userPost, setUserPost] = useState({});
   const stompClientRef = useRef(null);
 
-  const getCurrentDate = () => {
+  const getCurrentDateTime = () => {
     const now = new Date();
-    return `${String(now.getDate()).padStart(2, "0")}-${String(
-      now.getMonth() + 1
-    ).padStart(2, "0")}-${now.getFullYear()}`;
+    const day = String(now.getDate()).padStart(2, "0");
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+
+    return `${day}-${month}-${year} ${hours}:${minutes}:${seconds}`;
+  };
+
+
+  
+  const getCompactTimestamp = () => {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, "0");
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+
+    return `${day}${month}${year}${hours}${minutes}${seconds}`;
   };
 
   const getToken = async () => {
@@ -50,26 +69,29 @@ const CommentModal = ({
   };
 
   const handleSendComment = async () => {
+    const token = await getToken();
     if (!newComment.trim()) return;
 
     const commentData = {
+      commentId: userIndex.username + getCompactTimestamp(), 
       postID: post.postId,
       username: userIndex.username,
       content: newComment,
-      date: getCurrentDate(),
+      date: getCurrentDateTime(),
       fullName: userIndex.fullName,
       profilePicURL: userIndex.profilePicURL,
     };
 
     try {
-      const res = await fetch("http://localhost:9000/api/comments/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(commentData),
-      });
-
-      const saved = await res.json();
-      setComments((prev) => [...prev, saved]);
+      const res = await fetch("http://localhost:9191/api/comments/createComment", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(commentData),
+    });
+      
       setNewComment("");
     } catch (err) {
       console.error("Lỗi khi gửi comment:", err);
@@ -80,7 +102,7 @@ const CommentModal = ({
     const token = await getToken();
     if (!token) return;
     try {
-      const res = await fetch("http://localhost:8080/api/auth/users/req", {
+      const res = await fetch("http://localhost:9191/api/auth/users/req", {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -95,7 +117,7 @@ const CommentModal = ({
     if (!token || !post.username) return;
     try {
       const res = await fetch(
-        `http://localhost:8080/api/users/get-user-by-username/${post.username}`,
+        `http://localhost:9191/api/users/get-user-by-username/${post.username}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -113,11 +135,14 @@ const CommentModal = ({
     setLoading(true);
     try {
       const res = await fetch(
-        `http://localhost:9000/comments?postID=${post.postId}&page=${page}&size=5`,
+        `http://localhost:9191/api/comments/getComments?postID=${post.postId}&page=${page}&size=5`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
-      setComments((prev) => [...prev, ...data]);
+      const dataIm = data.result;
+      console.log("data",data);
+      console.log("dataIm",dataIm);
+      setComments((prev) => [...prev, ...dataIm]);
     } catch (err) {
       console.error("Lỗi khi lấy comments:", err);
     } finally {
@@ -160,8 +185,11 @@ const CommentModal = ({
   }, [post.id]);
 
   useEffect(() => {
-    fetchComments();
-  }, [page, userIndex.username, post.id]);
+    if (userIndex.username && post.postId){
+      fetchComments();
+    }
+    
+  }, [post.postId, userIndex.username]);
 
   return (
     <Modal size="4xl" isOpen={isOpen} onClose={onClose} isCentered>
@@ -237,7 +265,7 @@ const CommentModal = ({
                 {loading ? (
                   <p className="text-center text-gray-500">Loading comments...</p>
                 ) : comments.length ? (
-                  comments.map((c, idx) => <CommentCard key={idx} comment={c} />)
+                  comments.map((comment, idx) => <CommentCard key={idx} comment={comment} />)
                 ) : (
                   <p className="text-center text-gray-500">No comments yet.</p>
                 )}

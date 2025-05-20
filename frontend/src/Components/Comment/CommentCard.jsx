@@ -33,7 +33,7 @@ const CommentCard = ({ comment }) => {
       const token = await getToken();
       if (!token) return;
       try {
-        const res = await fetch("http://localhost:8080/api/auth/users/req", {
+        const res = await fetch("http://localhost:9191/api/auth/users/req", {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -69,7 +69,7 @@ const CommentCard = ({ comment }) => {
 
     setLoading(true);
     try {
-      const res = await axios.get("http://localhost:9000/replyComments", {
+      const res = await axios.get("http://localhost:9191/api/comments/getReply", {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -81,7 +81,7 @@ const CommentCard = ({ comment }) => {
         },
       });
 
-      const newReplies = res.data;
+      const newReplies = res.data.result;
       setReplies((prev) => [...prev, ...newReplies]);
       setPage(requestedPage + 1);
       if (newReplies.length < 5) setHasMore(false);
@@ -93,6 +93,7 @@ const CommentCard = ({ comment }) => {
   };
 
   const handleSendReply = async () => {
+    const token = await getToken();
     if (!replyText.trim()) return;
 
     const newReply = {
@@ -102,13 +103,22 @@ const CommentCard = ({ comment }) => {
     };
 
     try {
-      const res = await axios.post("http://localhost:9000/api/comments/reply", newReply);
+      const res = await axios.post(
+        "http://localhost:9191/api/comments/reply",
+        newReply,  // body data
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
       setReplies((prev) => [...prev, res.data]);
       setReplyText("");
     } catch (err) {
       console.error("Error sending reply:", err);
     }
-  };
+  }  
 
   return (
     <div className="border-b pb-3">
@@ -193,5 +203,6 @@ const CommentCard = ({ comment }) => {
     </div>
   );
 };
+
 
 export default CommentCard;

@@ -45,7 +45,7 @@ useEffect(() => {
     const token = await getToken();
     if (!token) return;
     try {
-      const response = await fetch("http://localhost:8080/api/auth/users/req", {
+      const response = await fetch("http://localhost:9191/api/auth/users/req", {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -68,14 +68,19 @@ const handleSavePost = () => {
   // kiem tra liked 
   useEffect(() => {
     const checkIfLiked = async () => {
+      const token = await getToken();
       if (!userIndex.username) return; // ⚠️ tránh gọi khi chưa có username
   
       try {
         const response = await fetch(
-          `http://localhost:9000/api/likes/check?username=${userIndex.username}&postID=${postId}`
+          `http://localhost:9191/api/likes/check?username=${userIndex.username}&postID=${postId}`,{
+            headers: {
+              "Authorization": `Bearer ${token}`,          
+        },
+          }
         );
         const data = await response.json();
-        if (data.liked) {
+        if (data.result.liked) {
           setIsPostLiked(true);
         }
       } catch (err) {
@@ -89,15 +94,19 @@ const handleSavePost = () => {
 
   //like
   const handlePostLike = async () => {
+    const token = await getToken();
     const like = {
       postID: postId,
       username: userIndex.username,
+      tempContent: content,
+      fullName: fullName
     };
   
     try {
-      const response = await fetch("http://localhost:9000/api/likes/likes", {
+      const response = await fetch("http://localhost:9191/api/likes/likes", {
         method: "POST",
         headers: {
+          "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(like),

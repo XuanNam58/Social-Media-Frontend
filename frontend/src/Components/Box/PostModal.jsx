@@ -33,7 +33,7 @@ export default function PostModal() {
       if (!token) return;
 
       try {
-        const response = await fetch("http://localhost:8080/api/auth/users/req", {
+        const response = await fetch("http://localhost:9191/api/auth/users/req", {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -56,10 +56,35 @@ export default function PostModal() {
     if (file) setMedia(file);
   };
 
-  const getCurrentDate = () => {
-    const today = new Date();
-    return `${String(today.getDate()).padStart(2, "0")}-${String(today.getMonth() + 1).padStart(2, "0")}-${today.getFullYear()}`;
+  const getCurrentDateTime = () => {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, "0");
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+
+    return `${day}-${month}-${year} ${hours}:${minutes}:${seconds}`;
   };
+
+
+  
+  const getCompactTimestamp = () => {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, "0");
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+
+    return `${day}${month}${year}${hours}${minutes}${seconds}`;
+  };
+
+// Ví dụ:
+console.log(getCompactTimestamp()); // ➝ 18052025182503
+
 
   const handlePost = async () => {
     if (!content.trim()) return;
@@ -83,12 +108,14 @@ export default function PostModal() {
   };
 
   const submitPost = async (mediaURL, mediaType) => {
+    const token = await getToken();
     const newPost = {
+      postId: userIndex.username + getCompactTimestamp(),
       username: userIndex.username,
       fullName: userIndex.fullName,
       profilePicURL: userIndex.profilePicURL,
       content,
-      date: getCurrentDate(),
+      date: getCurrentDateTime(),
     };
 
     if (mediaURL) {
@@ -97,9 +124,12 @@ export default function PostModal() {
     }
 
     try {
-      const res = await fetch("http://localhost:9000/api/posts/create", {
+      const res = await fetch("http://localhost:9191/api/posts/createPost", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         body: JSON.stringify(newPost),
       });
 

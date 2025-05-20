@@ -80,14 +80,19 @@ const HomePage = () => {
       if (!token) return;
       setLoading(true);
       try {
-        const response = await fetch(`http://localhost:9000/api/posts?page=${page}&size=5`, {
+        const response = await fetch(`http://localhost:9191/api/posts/getPosts?page=${page}&size=5`, {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
+
+        console.log("response", response)
         const data = await response.json();
-        setPosts((prevPosts) => [...prevPosts, ...data]);
+        console.log("data",data);
+    
+        
+        setPosts((prevPosts) => [...prevPosts, ...data.result]);
         setHasMore(data.length > 0); // Kiểm tra xem có thêm bài viết không
       } catch (error) {
         console.error("Lỗi khi lấy bài post:", error);

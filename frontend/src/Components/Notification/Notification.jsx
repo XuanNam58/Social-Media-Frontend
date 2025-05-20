@@ -34,7 +34,7 @@ const Notification = ({ onClose }) => {
   };
 
   const fetchUserInfo = async (token) => {
-    const res = await fetch("http://localhost:8080/api/auth/users/req", {
+    const res = await fetch("http://localhost:9191/api/auth/users/req", {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -47,14 +47,14 @@ const Notification = ({ onClose }) => {
   };
 
   const fetchNotifications = async (username, token) => {
-    const res = await fetch(`http://localhost:9001/api/notifications/${username}`,{
+    const res = await fetch(`http://localhost:9191/api/notifications/get/${username}`,{
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
     });
     const data = await res.json();
-    setNotifications(data);
+    setNotifications(data.result);
   };
 
   useEffect(() => {

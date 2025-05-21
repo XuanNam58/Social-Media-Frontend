@@ -106,7 +106,11 @@ const Profile = () => {
     const updateUserData = async () => {
       if (token && username) {
         try {
-          await dispatch(getUserByUsernameAction(username, token));
+          if (username === user.reqUser.result.username) {
+            await dispatch(getUserProfileAction(token));
+          } else {
+            await dispatch(getUserByUsernameAction(username, token));
+          }
         } catch (error) {
           console.error("Error updating user data:", error);
         }
@@ -114,7 +118,12 @@ const Profile = () => {
     };
 
     updateUserData();
-  }, [user.followUser?.message, user.unFollowUser?.message, token, username]);
+  }, [user.followUser?.message, 
+    user.unFollowUser?.message, 
+    token, 
+    username, 
+    user.userByUsername?.result?.followerNum, 
+    user.reqUser?.result?.followingNum]);
 
   // Xác định người dùng cần hiển thị
   const profileUser =
@@ -127,6 +136,7 @@ const Profile = () => {
       console.log("Follow user:", auth.currentUser.uid);
 
       const data = {
+        followerFullname: user.reqUser.result.fullName,
         followerUsername: user.reqUser.result.username,
         followedUsername: user.userByUsername.result.username,
         followerId: auth.currentUser.uid,
@@ -143,11 +153,11 @@ const Profile = () => {
       // Update following state immediately
       setIsFollowing(true);
 
-      // Force a re-fetch of user data
-      if (username) {
-        await dispatch(getUserByUsernameAction(username, token));
-      } else {
+      // Force a re-fetch of user data for both users
+      if (username === user.reqUser.result.username) {
         await dispatch(getUserProfileAction(token));
+      } else {
+        await dispatch(getUserByUsernameAction(username, token));
       }
     } catch (error) {
       console.log("Error following user:", error);
@@ -172,11 +182,11 @@ const Profile = () => {
       // Update following state immediately
       setIsFollowing(false);
 
-      // Force a re-fetch of user data
-      if (username) {
-        await dispatch(getUserByUsernameAction(username, token));
-      } else {
+      // Force a re-fetch of user data for both users
+      if (username === user.reqUser.result.username) {
         await dispatch(getUserProfileAction(token));
+      } else {
+        await dispatch(getUserByUsernameAction(username, token));
       }
     } catch (error) {
       console.log("Error unfollowing user:", error);

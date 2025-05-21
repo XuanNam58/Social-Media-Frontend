@@ -64,6 +64,7 @@ const ProfileUserDetailChange = ({
   isFollowing,
 }) => {
   const [localIsFollowing, setLocalIsFollowing] = useState(isFollowing);
+  const [isLoading, setIsLoading] = useState(false);
   const dispatch = useDispatch();
   const auth = getAuth();
   const [token, setToken] = useState(null);
@@ -85,19 +86,25 @@ const ProfileUserDetailChange = ({
 
   const handleFollowClick = async () => {
     try {
+      setIsLoading(true);
       setLocalIsFollowing(true);
       await onFollow();
     } catch (error) {
       setLocalIsFollowing(false);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleUnfollowClick = async () => {
     try {
+      setIsLoading(true);
       setLocalIsFollowing(false);
       await onUnfollow();
     } catch (error) {
       setLocalIsFollowing(true);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -164,17 +171,27 @@ const ProfileUserDetailChange = ({
             {!isOwnProfile &&
               (isFollowing ? (
                 <button
-                  className="bg-gray-200 text-gray-800 px-4 py-1 rounded-lg hover:bg-gray-300"
+                  className="bg-gray-200 text-gray-800 px-4 py-1 rounded-lg hover:bg-gray-300 flex items-center justify-center min-w-[100px]"
                   onClick={handleUnfollowClick}
+                  disabled={isLoading}
                 >
-                  Following
+                  {isLoading ? (
+                    <div className="w-5 h-5 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    "Following"
+                  )}
                 </button>
               ) : (
                 <button
-                  className="bg-blue-500 text-white px-4 py-1 rounded-lg hover:bg-blue-600"
+                  className="bg-blue-500 text-white px-4 py-1 rounded-lg hover:bg-blue-600 flex items-center justify-center min-w-[100px]"
                   onClick={handleFollowClick}
+                  disabled={isLoading}
                 >
-                  Follow
+                  {isLoading ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    "Follow"
+                  )}
                 </button>
               ))}
             <button className="border px-4 py-1 rounded-lg">Message</button>

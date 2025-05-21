@@ -18,6 +18,8 @@ export const followUserAction = (data) => async (dispatch) => {
     const res = await axios.post(
       `${FRIEND_API}/follow`,
       {
+        followerUsername: data.followerUsername,
+        followedUsername: data.followedUsername,
         followerId: data.followerId,
         followedId: data.followedId,
       },

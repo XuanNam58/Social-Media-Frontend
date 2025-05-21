@@ -127,6 +127,8 @@ const Profile = () => {
       console.log("Follow user:", auth.currentUser.uid);
 
       const data = {
+        followerUsername: user.reqUser.result.username,
+        followedUsername: user.userByUsername.result.username,
         followerId: auth.currentUser.uid,
         followedId: user.userByUsername.result.uid,
         token: token,

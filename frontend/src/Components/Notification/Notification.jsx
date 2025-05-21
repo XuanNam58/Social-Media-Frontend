@@ -70,7 +70,7 @@ const Notification = ({ onClose }) => {
             setLoading(true);
       
             const fetchUser = async () => {
-              const res = await fetch("http://localhost:8080/api/users/req", {
+              const res = await fetch("http://localhost:9191/api/auth/users/req", {
                 method: "GET",
                 headers: {
                   "Authorization": `Bearer ${token}`,
@@ -83,13 +83,14 @@ const Notification = ({ onClose }) => {
             };
       
             const fetchNotifications = async (username) => {
-              const res = await fetch(`http://localhost:9001/api/notifications/${username}`, {
+              const res = await fetch(`http://localhost:9191/api/notifications/get/${username}`, {
                 method: "GET",
-                // headers: {
-                //   "Authorization": `Bearer ${token}`,
-                // },
+                headers: {
+                  "Authorization": `Bearer ${token}`,
+                },
               });
               const data = await res.json();
+              console.log(data);
               setRecentSearches(data);
             };
       

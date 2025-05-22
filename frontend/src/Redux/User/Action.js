@@ -15,10 +15,12 @@ const AUTH_API = "http://localhost:9191/api/auth/users";
 const FRIEND_API = "http://localhost:9191/api/friend/users";
 export const followUserAction = (data) => async (dispatch) => {
   try {
-    console.log("Follow user data:", data);
     const res = await axios.post(
       `${FRIEND_API}/follow`,
       {
+        followerFullname: data.followerFullname,
+        followerUsername: data.followerUsername,
+        followedUsername: data.followedUsername,
         followerId: data.followerId,
         followedId: data.followedId,
       },
@@ -44,7 +46,6 @@ export const followUserAction = (data) => async (dispatch) => {
 
 export const unFollowUserAction = (data) => async (dispatch) => {
   try {
-    console.log("Unfollow user data:", data);
     const res = await axios.delete(`${FRIEND_API}/unfollow`, {
       headers: {
         Authorization: `Bearer ${data.token}`,

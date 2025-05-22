@@ -170,7 +170,7 @@ const Sidebar = () => {
       const token = await getToken();
       if (!token) return;
       try {
-        const response = await fetch("http://localhost:8080/api/users/req", {
+        const response = await fetch("http://localhost:9191/api/auth/users/req", {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -178,7 +178,7 @@ const Sidebar = () => {
           },
         });
         const dataUser = await response.json();
-        setUserIndex(dataUser);
+        setUserIndex(dataUser.result);
       } catch (error) {
         console.error("Lỗi khi lấy thông tin user:", error);
       }
@@ -195,12 +195,18 @@ const Sidebar = () => {
       onConnect: () => {
         console.log("🔔 Connected to Notification WebSocket");
 
-        stompClient.subscribe(
-          `/topic/notifications/${userIndex.username}`,
-          (message) => {       
-            setNotificationCount((prev) => prev + 1);
+        stompClient.subscribe("/topic/notifications", (message) => {
+          try {
+            const sender = message.body; 
+            console.log("sender",sender);
+            console.log("index",userIndex.username)
+            if (sender !== userIndex.username) {
+              setNotificationCount((prev) => prev + 1);
+            }
+          } catch (error) {
+            console.error("Lỗi khi xử lý notification message:", error);
           }
-        );
+        });
       },
     });
 
@@ -210,6 +216,7 @@ const Sidebar = () => {
       stompClient.deactivate();
     };
   }, [userIndex]);
+
 
   return (
     <>

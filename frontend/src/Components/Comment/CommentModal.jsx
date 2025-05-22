@@ -1,10 +1,10 @@
+import React, { useState, useEffect, useRef } from "react";
 import {
   Modal,
   ModalBody,
   ModalContent,
   ModalOverlay,
 } from "@chakra-ui/react";
-import React, { useState, useEffect, useRef } from "react";
 import { getAuth } from "firebase/auth";
 import {
   BsBookmark,
@@ -12,13 +12,13 @@ import {
   BsEmojiSmile,
   BsThreeDots,
 } from "react-icons/bs";
-import CommentCard from "./CommentCard";
 import { AiFillHeart, AiOutlineHeart } from "react-icons/ai";
 import { FaRegComment } from "react-icons/fa";
 import { RiSendPlaneLine } from "react-icons/ri";
-import "./CommentModal.css";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
+import CommentCard from "./CommentCard";
+import "./CommentModal.css";
 
 const CommentModal = ({
   post,
@@ -29,205 +29,192 @@ const CommentModal = ({
   handlePostLike,
   handleSavePost,
 }) => {
+  const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [userIndex, setUserIndex] = useState({});
-  const [comments, setComments] = useState([]);
   const [userPost, setUserPost] = useState({});
-
-  // lay ngay hien tai
-  const getCurrentDate = () => {
-    const today = new Date();
-    const day = String(today.getDate()).padStart(2, "0");
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const year = today.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
-
-  //lay token
-  const getToken = async () => {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (user) {
-      return await user.getIdToken();
-    } else {
-      console.error("User chưa đăng nhập!");
-      return null;
-    }
-  };
   const stompClientRef = useRef(null);
+
+  const getCurrentDateTime = () => {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, "0");
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+
+    return `${day}-${month}-${year} ${hours}:${minutes}:${seconds}`;
+  };
+
+
   
-  useEffect(() => {
-    const socket = new SockJS("http://localhost:9000/ws");
-    const stompClient = new Client({
-      webSocketFactory: () => socket,
-      onConnect: () => {
-        console.log("Connected to WebSocket");
-        stompClient.subscribe("/topic/comments", (message) => {
-          const newComment = JSON.parse(message.body);
-          setComments((prev) => [newComment, ...prev]);
-        });
-      },
-    });
-  
-    stompClient.activate();
-    stompClientRef.current = stompClient;
-  
-    return () => {
-      if (stompClientRef.current) {
-        stompClientRef.current.deactivate();
-      }
-    };
-  }, []);
+  const getCompactTimestamp = () => {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, "0");
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+
+    return `${day}${month}${year}${hours}${minutes}${seconds}`;
+  };
+
+  const getToken = async () => {
+    const user = getAuth().currentUser;
+    return user ? await user.getIdToken() : null;
+  };
 
   const handleSendComment = async () => {
-    if (newComment.trim() === "") return;
-  
+    const token = await getToken();
+    if (!newComment.trim()) return;
+
     const commentData = {
+      commentId: userIndex.username + getCompactTimestamp(), 
       postID: post.postId,
       username: userIndex.username,
       content: newComment,
-      date: getCurrentDate(),
+      date: getCurrentDateTime(),
       fullName: userIndex.fullName,
       profilePicURL: userIndex.profilePicURL,
     };
 
-    console.log(commentData);
-  
     try {
-      const response = await fetch("http://localhost:9000/api/comments/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(commentData),
-      });
-  
-      const savedComment = await response.json();
-      setComments([...comments, savedComment]);
+      const res = await fetch("http://localhost:9191/api/comments/createComment", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(commentData),
+    });
+      
       setNewComment("");
-    } catch (error) {
-      console.error("Lỗi khi gửi comment:", error.message);
+    } catch (err) {
+      console.error("Lỗi khi gửi comment:", err);
     }
   };
-  
 
-  const handleLoadMore = () => {
-    setPage((prevPage) => prevPage + 1);
+  const fetchCurrentUser = async () => {
+    const token = await getToken();
+    if (!token) return;
+    try {
+      const res = await fetch("http://localhost:9191/api/auth/users/req", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setUserIndex(data.result);
+    } catch (err) {
+      console.error("Lỗi khi lấy thông tin user:", err);
+    }
   };
 
-  //lay thong tin user
+  const fetchUserPost = async () => {
+    const token = await getToken();
+    if (!token || !post.username) return;
+    try {
+      const res = await fetch(
+        `http://localhost:9191/api/users/get-user-by-username/${post.username}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const data = await res.json();
+      setUserPost(data.result);
+    } catch (err) {
+      console.error("Lỗi khi lấy userPost:", err);
+    }
+  };
+
+  const fetchComments = async () => {
+    const token = await getToken();
+    if (!token || !post.username || !userIndex.username) return;
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `http://localhost:9191/api/comments/getComments?postID=${post.postId}&page=${page}&size=5`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const data = await res.json();
+      const dataIm = data.result;
+      console.log("data",data);
+      console.log("dataIm",dataIm);
+      setComments((prev) => [...prev, ...dataIm]);
+    } catch (err) {
+      console.error("Lỗi khi lấy comments:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // WebSocket setup
   useEffect(() => {
-    const fetchUser = async () => {
-      const token = await getToken();
-      if (!token) return;
-      try {
-        const response = await fetch("http://localhost:8080/api/users/req", {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+    const socket = new SockJS("http://localhost:9000/ws");
+    const client = new Client({
+      webSocketFactory: () => socket,
+      onConnect: () => {
+        client.subscribe("/topic/comments", (msg) => {
+          const newComment = JSON.parse(msg.body);
+          setComments((prev) => [newComment, ...prev]);
         });
-        const dataUser = await response.json();
-        setUserIndex(dataUser);
-      } catch (error) {
-        console.error("Lỗi khi lấy thông tin user:", error);
-      }
+      },
+    });
+
+    client.activate();
+    stompClientRef.current = client;
+
+    return () => {
+      client.deactivate();
     };
-    fetchUser();
   }, []);
 
-  // Reset khi post mới
   useEffect(() => {
-    setComments([]);
-    setPage(1);
-    setNewComment("");
+    fetchCurrentUser();
+  }, []);
+
+  useEffect(() => {
+    if (post.id) {
+      setComments([]);
+      setPage(1);
+      setNewComment("");
+      fetchUserPost();
+    }
   }, [post.id]);
 
-//lay userPost
   useEffect(() => {
-    const findUsePost = async () => {
-      const token = await getToken();
-      if (!post.username|| !token) return; // ⚠️ tránh gọi khi chưa có username
-  
-      try {
-        const response = await fetch(
-          `http://localhost:8080/api/users/get-user-by-username/${post.username}`,{
-            method: "GET",
-            headers: {
-              "Authorization": `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          },
-          
-        );
-        const data = await response.json();
-        
-          setUserPost(data);
-      
-      } catch (err) {
-        console.error("Error find userPost", err);
-      }
-    };
-  
-    findUsePost();
-  }, [post.id]); // 
-
-  //lay comment
-  useEffect(() => {
-    if (!userIndex.username) return;
-    const fetchComments = async () => {
-      const token = await getToken();
-      if (!post.username|| !token) return;
-      setLoading(true);
-      try {
-        const response = await fetch(
-          `http://localhost:9000/comments?postID=${post.postId}&page=${page}&size=5`,{
-            method: "GET",
-            headers: {
-              "Authorization": `Bearer ${token}`,            
-            },
-          },
-        );
-        const data = await response.json();
-        setComments((prev) => [...prev, ...data]);
-      } catch (error) {
-        console.error("Lỗi khi lấy comments:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchComments();
-  }, [page, post.id, userIndex.username]);
+    if (userIndex.username && post.postId){
+      fetchComments();
+    }
+    
+  }, [post.postId, userIndex.username]);
 
   return (
-    <Modal size={"4xl"} onClose={onClose} isOpen={isOpen} isCentered>
+    <Modal size="4xl" isOpen={isOpen} onClose={onClose} isCentered>
       <ModalOverlay />
       <ModalContent>
         <ModalBody>
           <div className="flex h-[75vh]">
-            {/* Bên trái */}
-            <div className="w-[45%] flex flex-col justify-center">
-              <div className="flex items-center">
+            {/* Left */}
+            <div className="w-[45%] flex flex-col">
+              <div className="flex items-center pt-3">
                 <img
                   className="h-12 w-12 rounded-full"
-                  src={userPost.profilePicURL}
+                  src={post.profilePicURL}
                   alt=""
                 />
                 <div className="pl-2">
-                  <p className="font-semibold text-sm">{post.username}</p>
+                  <p className="font-semibold text-sm">{post.fullName}</p>
                   <p className="font-thin text-sm">{post.date}</p>
                 </div>
               </div>
-
-              <div className="px-2 pb-2">
+              <div className="pt-3 pb-3 px-2">
                 <p>
                   <span className="font-semibold">{post.content}</span>
                 </p>
               </div>
-
               {post.picture && (
                 <img className="max-h-full w-full" src={post.picture} alt="" />
               )}
@@ -237,53 +224,48 @@ const CommentModal = ({
                   Your browser does not support the video tag.
                 </video>
               )}
-
               <div className="flex justify-between items-center w-full py-4">
                 <div className="flex items-center space-x-2">
                   {isPostLiked ? (
                     <AiFillHeart
-                      className="text-2xl text-red-500 hover:opacity-50 cursor-pointer"
+                      className="text-2xl text-red-500 cursor-pointer hover:opacity-50"
                       onClick={handlePostLike}
                     />
                   ) : (
                     <AiOutlineHeart
-                      className="text-2xl hover:opacity-50 cursor-pointer"
+                      className="text-2xl cursor-pointer hover:opacity-50"
                       onClick={handlePostLike}
                     />
                   )}
-                  <FaRegComment className="text-xl hover:opacity-50 cursor-pointer" />
-                  <RiSendPlaneLine className="text-xl hover:opacity-50 cursor-pointer" />
+                  <FaRegComment className="text-xl cursor-pointer hover:opacity-50" />
+                  <RiSendPlaneLine className="text-xl cursor-pointer hover:opacity-50" />
                 </div>
-                <div className="cursor-pointer">
-                  {isSaved ? (
-                    <BsBookmarkFill
-                      onClick={handleSavePost}
-                      className="text-xl hover:opacity-50 cursor-pointer"
-                    />
-                  ) : (
-                    <BsBookmark
-                      onClick={handleSavePost}
-                      className="text-xl hover:opacity-50 cursor-pointer"
-                    />
-                  )}
-                </div>
+                {isSaved ? (
+                  <BsBookmarkFill
+                    className="text-xl cursor-pointer hover:opacity-50"
+                    onClick={handleSavePost}
+                  />
+                ) : (
+                  <BsBookmark
+                    className="text-xl cursor-pointer hover:opacity-50"
+                    onClick={handleSavePost}
+                  />
+                )}
               </div>
             </div>
 
-            {/* Bên phải */}
+            {/* Right */}
             <div className="w-[55%] pl-10 relative">
               <div className="flex justify-between items-center py-4 border-b border-gray-300">
                 <h2 className="text-lg font-semibold text-gray-800">Comments</h2>
-                <BsThreeDots className="text-xl text-gray-500 cursor-pointer hover:opacity-60 transition-opacity duration-200" />
+                <BsThreeDots className="text-xl text-gray-500 cursor-pointer hover:opacity-60" />
               </div>
 
               <div className="comment mt-2 max-h-[380px] overflow-y-auto">
                 {loading ? (
                   <p className="text-center text-gray-500">Loading comments...</p>
-                ) : comments.length > 0 ? (
-                  comments.map((comment, index) => (
-                    <CommentCard key={index} comment={comment} />
-                  ))
+                ) : comments.length ? (
+                  comments.map((comment, idx) => <CommentCard key={idx} comment={comment} />)
                 ) : (
                   <p className="text-center text-gray-500">No comments yet.</p>
                 )}
@@ -292,7 +274,7 @@ const CommentModal = ({
               {comments.length > 0 && !loading && (
                 <div className="text-center mt-5">
                   <button
-                    onClick={handleLoadMore}
+                    onClick={() => setPage((prev) => prev + 1)}
                     className="bg-blue-500 text-white px-4 py-2 rounded-md"
                   >
                     Load More
@@ -300,13 +282,10 @@ const CommentModal = ({
                 </div>
               )}
 
-            
-
               <div className="absolute bottom-0 w-[90%]">
-                <div className="flex items-center w-full">
+                <div className="flex items-center">
                   <input
                     className="commentInput border rounded-full px-3 py-1 w-full text-sm"
-                    type="text"
                     placeholder="Add a comment..."
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}

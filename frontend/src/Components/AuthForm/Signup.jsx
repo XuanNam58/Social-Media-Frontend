@@ -19,6 +19,7 @@ const Signup = () => {
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [showReEnterPassword, setShowReEnterPassword] = useState(false);
+  const [isValidating, setIsValidating] = useState(false)
 
   const validateEmail = (email) => {
     return String(email)
@@ -29,6 +30,7 @@ const Signup = () => {
   };
 
   const validateForm = async () => {
+    setIsValidating(true)
     let tempErrors = {};
     if (!inputs.fullName) {
       tempErrors.password = "Fullname must not be blank";
@@ -47,6 +49,7 @@ const Signup = () => {
             },
           }
         );
+        auth.loading = false
 
         if (!res.ok) {
           // Xử lý khi response không ok (403, 500, etc)
@@ -84,6 +87,7 @@ const Signup = () => {
     }
 
     setErrors(tempErrors);
+    setIsValidating(false)
     return Object.keys(tempErrors).length === 0; // trả về true nếu không có lỗi
   };
 
@@ -150,8 +154,9 @@ const Signup = () => {
           size={"sm"}
           onChange={(e) => setInputs({ ...inputs, password: e.target.value })}
           isInvalid={errors.password}
+          autoComplete="off"
         />
-        <InputRightElement>
+        <InputRightElement display="flex" alignItems="center" height="100%">
           <Button
             variant={"ghost"}
             size={"sm"}
@@ -179,9 +184,10 @@ const Signup = () => {
             setInputs({ ...inputs, reEnterPassword: e.target.value })
           }
           isInvalid={errors.reEnterPassword}
+          autoComplete="off"
         />
 
-        <InputRightElement>
+        <InputRightElement display="flex" alignItems="center" height="100%">
           <Button
             variant={"ghost"}
             size={"sm"}
@@ -204,7 +210,7 @@ const Signup = () => {
         size={"sm"}
         fontSize={14}
         onClick={() => handleSubmit(inputs)}
-        isLoading={auth.loading}
+        isLoading={isValidating || auth.loading}
         loadingText="Signing up"
       >
         Sign up

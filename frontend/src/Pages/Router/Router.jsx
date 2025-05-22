@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import HomePage from "../HomePage/HomePage";
 import Profile from "../Profile/Profile";
 import AuthPage from "../AuthPage/AuthPage";
+import ChatInterface from "../../Components/Message/ChatInterface";
 import FriendPage from "../FriendPage/FriendPage";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
@@ -92,6 +93,7 @@ const Router = () => {
               }
             />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/message" element={<ChatInterface />}></Route>
           </Routes>
         </div>
       </div>

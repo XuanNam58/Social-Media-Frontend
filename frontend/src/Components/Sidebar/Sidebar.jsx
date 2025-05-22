@@ -115,6 +115,8 @@ const Sidebar = () => {
       navigate(`/${user.reqUser?.result.username}`);
     } else if (title === "Home") {
       navigate("/");
+    } else if (title === "Message") {
+      navigate("/message");
     } else if (title === "Friend") {
       navigate("/friend");
     }

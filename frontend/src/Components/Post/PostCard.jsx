@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { getAuth } from "firebase/auth";
 import {
   BsBookmark,
   BsBookmarkFill,
@@ -11,23 +12,108 @@ import { FaRegComment } from "react-icons/fa";
 import { RiSendPlaneLine } from "react-icons/ri";
 import CommentModal from "../Comment/CommentModal";
 import { useDisclosure } from "@chakra-ui/react";
-
-const PostCard = ({ post }) => {
-  //post
-  const { username, date, picture, content, video } = post;
   
+
+
+
+
+const PostCard = ({ post }, usernameIndex) => {
+  //post
+  const { postId, username, date, picture, content, video, numberOfLike, fullName,profilePicURL } = post;
+  const [userIndex, setUserIndex] = useState({}); // Tên người dùng
   const [showDropDown, setShowDropDown] = useState(false);
   const [isPostLiked, setIsPostLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const {isOpen, onOpen, onClose} = useDisclosure();
+  const [userPost, setUserPost] = useState({});
+  //lay token
+const getToken = async () => {
+  const auth = getAuth();
+  const user = auth.currentUser;
+  if (user) {
+    const token = await user.getIdToken();
+    return token;
+  } else {
+    console.error("User chưa đăng nhập!");
+    return null;
+  }
+};
 
-  const handleSavePost = () => {
+useEffect(() => {
+  // Lấy thông tin user khi component mount
+  const fetchUser = async () => {
+    const token = await getToken();
+    if (!token) return;
+    try {
+      const response = await fetch("http://localhost:8080/api/users/req", {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      const dataUser = await response.json();
+      setUserIndex(dataUser);
+    } catch (error) {
+      console.error("Lỗi khi lấy thông tin user:", error);
+    }
+  };
+  fetchUser();
+}, []); // Chạy khi component mount
+  
+const handleSavePost = () => {
     setIsSaved(!isSaved);
   };
 
-  const handlePostLike = () => {
-    setIsPostLiked(!isPostLiked);
+  // kiem tra liked 
+  useEffect(() => {
+    const checkIfLiked = async () => {
+      if (!userIndex.username) return; // ⚠️ tránh gọi khi chưa có username
+  
+      try {
+        const response = await fetch(
+          `http://localhost:9000/api/likes/check?username=${userIndex.username}&postID=${postId}`
+        );
+        const data = await response.json();
+        if (data.liked) {
+          setIsPostLiked(true);
+        }
+      } catch (err) {
+        console.error("Error checking like status", err);
+      }
+    };
+  
+    checkIfLiked();
+  }, [userIndex.username, postId]); // 
+  
+
+  //like
+  const handlePostLike = async () => {
+    const like = {
+      postID: postId,
+      username: userIndex.username,
+    };
+  
+    try {
+      const response = await fetch("http://localhost:9000/api/likes/likes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(like),
+      });
+  
+      if (!response.ok) {
+        throw new Error("Lỗi khi gọi API like");
+      }
+  
+      // Nếu request thành công → đổi trạng thái liked
+      setIsPostLiked(!isPostLiked);
+    } catch (error) {
+      console.error("Lỗi khi xử lý like:", error.message);
+    }
   };
+  
   const handleClick = () => {
     setShowDropDown(!showDropDown);
   };
@@ -42,11 +128,11 @@ const PostCard = ({ post }) => {
           <div className="flex items-center">
             <img
               className="h-12 w-12 rounded-full"
-              src="https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_960_720.png"
+              src= {profilePicURL}
               alt=""
             />
             <div className="pl-2">
-              <p className="font-semibold text-sm">{username}</p>
+              <p className="font-semibold text-sm">{fullName}</p>
               <p className="font-thin text-sm">{date}</p>
             </div>
           </div>
@@ -69,7 +155,7 @@ const PostCard = ({ post }) => {
           </p>
         </div>
              
-        {picture.trim() && (
+        {picture && (
         <div className="w-full">
           <img
             className="w-full"
@@ -142,6 +228,7 @@ const PostCard = ({ post }) => {
       </div>
 
       <CommentModal
+        post={post}
         handlePostLike={handlePostLike}
         onClose={onClose}
         isOpen={isOpen}

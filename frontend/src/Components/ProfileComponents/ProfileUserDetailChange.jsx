@@ -1,5 +1,15 @@
-import React from "react";
-
+import React, { useEffect, useState } from "react";
+import FollowListModal from "./FollowListModal";
+import { useDisclosure } from "@chakra-ui/react";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  getFollowerIdsAction,
+  getFollowerListAction,
+  getFollowingIdsAction,
+  getFollowingListAction,
+  getUsersByUserIds,
+} from "../../Redux/User/Action";
+import { getAuth } from "firebase/auth";
 const profile = {
   username: "ganknow",
   posts: 501,
@@ -11,50 +21,198 @@ const profile = {
   link: "https://linktree.com/ganknow",
   avatar: "https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_1280.png",
   highlights: [
-    { title: "Giveaway", image: "https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_1280.png" },
-    { title: "Reviews", image: "https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_1280.png" },
-    { title: "Dota All-Star", image: "https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_1280.png" },
-    { title: "MasterRame...", image: "https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_1280.png" },
-    { title: "Gamepals", image: "https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_1280.png" },
-    { title: "All-Star Valo", image: "https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_1280.png" },
-    { title: "Valorant", image: "https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_1280.png" },
+    {
+      title: "Giveaway",
+      image:
+        "https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_1280.png",
+    },
+    {
+      title: "Reviews",
+      image:
+        "https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_1280.png",
+    },
+    {
+      title: "Dota All-Star",
+      image:
+        "https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_1280.png",
+    },
+    {
+      title: "MasterRame...",
+      image:
+        "https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_1280.png",
+    },
+    {
+      title: "Gamepals",
+      image:
+        "https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_1280.png",
+    },
+    {
+      title: "All-Star Valo",
+      image:
+        "https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_1280.png",
+    },
+    {
+      title: "Valorant",
+      image:
+        "https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_1280.png",
+    },
   ],
 };
 
-export default function InstagramProfile() {
+const ProfileUserDetailChange = ({
+  userParam,
+  isOwnProfile,
+  onFollow,
+  onUnfollow,
+  isFollowing,
+}) => {
+  const [localIsFollowing, setLocalIsFollowing] = useState(isFollowing);
+  const dispatch = useDispatch();
+  const auth = getAuth();
+  const [token, setToken] = useState(null);
+  const user = useSelector((store) => store.user);
+
+  useEffect(() => {
+    const getToken = async () => {
+      if (auth.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        setToken(token);
+      }
+    };
+    getToken();
+  }, [auth.currentUser]);
+
+  useEffect(() => {
+    setLocalIsFollowing(isFollowing);
+  }, [isFollowing]);
+
+  const handleFollowClick = async () => {
+    try {
+      setLocalIsFollowing(true);
+      await onFollow();
+    } catch (error) {
+      setLocalIsFollowing(false);
+    }
+  };
+
+  const handleUnfollowClick = async () => {
+    try {
+      setLocalIsFollowing(false);
+      await onUnfollow();
+    } catch (error) {
+      setLocalIsFollowing(true);
+    }
+  };
+
+  // Kiểm tra và sử dụng profilePicURL hoặc profilePicUrl
+  const profilePicUrl =
+    userParam.profilePicURL || userParam.profilePicUrl || profile.avatar;
+
+  // Modal
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [modalTile, setModalTitle] = useState("");
+
+  const handleOpenFollowers = async () => {
+    try {
+      console.log("Opening followers modal");
+      setModalTitle("Followers");
+      
+      await dispatch(
+        getFollowerListAction({
+          token,
+          followedId: userParam.uid,
+          page: 1,
+          size: 5,
+        })
+      );
+      
+      onOpen();
+    } catch (error) {
+      console.error("Error fetching followers:", error);
+      // Xử lý lỗi ở đây
+    }
+  };
+  
+  const handleOpenFollowing = async () => {
+    try {
+      setModalTitle("Following");
+      
+      await dispatch(
+        getFollowingListAction({
+          token,
+          followerId: userParam.uid,
+          page: 1,
+          size: 5,
+        })
+      );
+      
+      onOpen();
+    } catch (error) {
+      console.error("Error fetching following:", error);
+      // Xử lý lỗi ở đây
+    }
+  };
+
   return (
-    
-    <div className="w-full p-4 border mt-12 rounded-lg shadow-lg bg-white">
-      {/* Header */}
+    <div>
       <div className="flex items-center space-x-4">
         <img
-          src={profile.avatar}
+          src={profilePicUrl}
           alt="Avatar"
           className="w-20 h-20 rounded-full border"
         />
         <div>
-            <h2 className="text-xl font-bold">{profile.username}</h2>
-            <div className="flex space-x-2 mt-1">
-                <button className="bg-blue-500 text-white px-4 py-1 rounded-lg">
-                Follow
+          <h2 className="text-xl font-bold">{userParam.username}</h2>
+          <div className="flex space-x-2 mt-1">
+            {!isOwnProfile &&
+              (isFollowing ? (
+                <button
+                  className="bg-gray-200 text-gray-800 px-4 py-1 rounded-lg hover:bg-gray-300"
+                  onClick={handleUnfollowClick}
+                >
+                  Following
                 </button>
-                <button className="border px-4 py-1 rounded-lg">Message</button>
-            </div>
-            
-            <div className="flex justify-center mt-4 text-gray-700 space-x-6 text-sm font-medium">
-                <span>{profile.posts} posts</span>
-                <span>{profile.followers} followers</span>
-                <span>{profile.following} following</span>
-            </div>
+              ) : (
+                <button
+                  className="bg-blue-500 text-white px-4 py-1 rounded-lg hover:bg-blue-600"
+                  onClick={handleFollowClick}
+                >
+                  Follow
+                </button>
+              ))}
+            <button className="border px-4 py-1 rounded-lg">Message</button>
+          </div>
+
+          <div className="flex justify-center mt-4 text-gray-700 space-x-6 text-sm font-medium">
+            <span>{userParam.postNum || 0} posts</span>
+            <span
+              className="cursor-pointer hover:text-gray-900"
+              onClick={handleOpenFollowers}
+            >
+              {userParam.followerNum} followers
+            </span>
+            <span
+              className="cursor-pointer hover:text-gray-900"
+              onClick={handleOpenFollowing}
+            >
+              {userParam.followingNum} following
+            </span>
+          </div>
+
+          {/* Modal */}
+          <FollowListModal
+            isOpen={isOpen}
+            onClose={onClose}
+            title={modalTile}
+            userId={userParam.uid}
+          />
         </div>
       </div>
 
-      
-
       {/* Bio */}
       <div className="mt-3">
-        <h3 className="font-bold">{profile.name}</h3>
-        <p className="text-gray-700 text-sm">{profile.description}</p>
+        <h3 className="font-bold">{userParam.fullName}</h3>
+        <p className="text-gray-700 text-sm">{userParam.bio}</p>
         <a
           href={profile.link}
           className="text-blue-500 text-sm"
@@ -79,6 +237,7 @@ export default function InstagramProfile() {
         ))}
       </div>
     </div>
-    
   );
-}
+};
+
+export default ProfileUserDetailChange;

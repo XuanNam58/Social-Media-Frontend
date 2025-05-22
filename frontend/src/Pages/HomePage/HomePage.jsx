@@ -1,85 +1,147 @@
-import React from "react";
+import React, { useEffect, useState, useRef } from "react";
 import PostCard from "../../Components/Post/PostCard";
 import PostBox from "../../Components/Box/PostBox";
 import ContactRight from "../../Components/ContactRight/ContactRight";
-import { useEffect, useState } from "react";
 import { getAuth } from "firebase/auth";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 
 const HomePage = () => {
   const [posts, setPosts] = useState([]);
-  const [username, setUsername] = useState("");
+  const [userIndex, setUserIndex] = useState({});
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true); // Trạng thái xem có bài mới không
+  const containerRef = useRef(null);
 
   const getToken = async () => {
-    const auth = getAuth(); // Lấy instance của Firebase Auth
-    const user = auth.currentUser; // Kiểm tra user hiện tại
-
+    const auth = getAuth();
+    const user = auth.currentUser;
     if (user) {
-        const token = await user.getIdToken(); // Lấy ID Token của user
-        console.log("Token:", token);
-        return token;
+      const token = await user.getIdToken();
+      return token;
     } else {
-        console.error("User chưa đăng nhập!");
-        return null;
+      console.error("User chưa đăng nhập!");
+      return null;
     }
-};
+  };
 
+  useEffect(() => {
+    const fetchUser = async () => {
+      const token = await getToken();
+      if (!token) return;
+      try {
+        const response = await fetch("http://localhost:9191/api/auth/users/req", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+        const dataUser = await response.json();
+        setUserIndex(dataUser);
+      } catch (error) {
+        console.error("Lỗi khi lấy thông tin user:", error);
+      }
+    };
+    fetchUser();
+  }, []);
 
-    useEffect(() => {
-      // Gọi API lấy thông tin user
-      const fetchUser = async () => {
-        const token = await getToken();
-        if (!token) return;
-        try {
-          const idToken = ""
-          const response = await fetch("http://localhost:8080/api/users/req", {
-            method: "GET",
-            headers: {
-                "Authorization": `Bearer ${token}`, // Gửi token trong header
-                "Content-Type": "application/json"
-            }
-        }); // API lấy user
-          const dataUser = await response.json();
-          setUsername(dataUser.username);
-        } catch (error) {
-          console.error("Lỗi khi lấy thông tin user:", error);
-        }
-      };
+  const stompClientRef = useRef(null);
 
-      fetchUser();
-    }, []); // Chạy 1 lần khi component mount
+  useEffect(() => {
+    const socket = new SockJS("http://localhost:9000/ws");
+    const stompClient = new Client({
+      webSocketFactory: () => socket,
+      onConnect: () => {
+        console.log("Connected to WebSocket");
+        stompClient.subscribe("/topic/posts", (message) => {
+          const newPost = JSON.parse(message.body);
+          setPosts((prev) => [newPost, ...prev]);
+        });
+      },
+    });
 
-    useEffect(() => {
-      if (username === "") return; // Chỉ fetch nếu user đã có giá trị
+    stompClient.activate();
+    stompClientRef.current = stompClient;
 
-      const fetchPosts = async () => {
-        try {
-          const response = await fetch(`http://localhost:9000/posts?username=${username}`); // Dùng template string
-          const data = await response.json();
-          setPosts(data);
-        } catch (error) {
-          console.error("Lỗi khi lấy bài post:", error);
-        }
-      };
+    return () => {
+      if (stompClientRef.current) {
+        stompClientRef.current.deactivate();
+      }
+    };
+  }, []);
 
-      fetchPosts();
-    }, [username]); // Chạy lại khi `user` thay đổi
+  useEffect(() => {
+    if (!userIndex.username) return;
 
+    const fetchPosts = async () => {
+      const token = await getToken();
+      if (!token) return;
+      setLoading(true);
+      try {
+        const response = await fetch(`http://localhost:9000/posts?page=${page}&size=5`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+        setPosts((prevPosts) => [...prevPosts, ...data]);
+        setHasMore(data.length > 0); // Kiểm tra xem có thêm bài viết không
+      } catch (error) {
+        console.error("Lỗi khi lấy bài post:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPosts();
+  }, [userIndex.username, page]);
+
+  const handleScroll = () => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+
+    if (scrollTop + clientHeight >= scrollHeight - 100 && !loading) {
+      setLoading(true);
+      setTimeout(() => {
+        setPage((prevPage) => prevPage + 1);
+        setLoading(false);
+      }, 1000);
+    }
+  };
 
   return (
     <div>
       <div className="mt-10 flex w-[100%] justify-center">
-        <div className="w-[56%] px-10 ">
-          {/* <div className="storyDiv flex space-x-2 border p-4 rounded-md">
-            {[1, 1, 1].map((item) => (
-              <StoryCircle />
-            ))}
-          </div> */}
-          <div className="space-y-10 w-full mt-10 max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200">
-            <PostBox/>        
+        <div className="w-[56%] px-10">
+          <div
+            ref={containerRef}
+            onScroll={handleScroll}
+            className="space-y-10 w-full mt-10 max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
+          >
+            <PostBox userIndex={userIndex} />
             {posts.length > 0 ? (
-              posts.map((post, index) => <PostCard key={index} post={post} />)
+              posts.map((post, index) => (
+                <PostCard key={index} post={post} usernameIndex={userIndex.username} />
+              ))
             ) : (
               <p className="text-center text-gray-500">Đang tải bài viết...</p>
+            )}
+
+            {loading && (
+              <div className="text-center mt-5">
+                <p className="text-gray-500">Đang tải thêm bài viết...</p>
+              </div>
+            )}
+
+            {!hasMore && !loading && (
+              <div className="text-center mt-5">
+                <p className="text-gray-500">Bạn đã xem hết bài viết!</p>
+              </div>
             )}
           </div>
         </div>

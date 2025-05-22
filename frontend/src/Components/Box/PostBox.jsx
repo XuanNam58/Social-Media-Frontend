@@ -2,14 +2,15 @@ import React from "react";
 import { FaPhotoVideo, FaSmile } from "react-icons/fa";
 import PostModal from "./PostModal";
 
-const PostBox = () => {
+const PostBox = ({userIndex}) => {
+  const {profilePicURL} = userIndex
   return (
     <div className="bg-white p-4 rounded-lg shadow-md text-black">
       {/* Ô nhập trạng thái */}
       <div className="flex items-center space-x-3">
         <img
           className="w-10 h-10 rounded-full"
-          src="https://cdn.pixabay.com/photo/2025/01/09/16/59/forest-9322222_1280.jpg" // Ảnh đại diện
+          src={profilePicURL} // Ảnh đại diện
           alt="Avatar"
         />
         <input

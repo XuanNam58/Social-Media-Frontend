@@ -39,7 +39,7 @@ const Signup = () => {
     } else {
       try {
         const res = await fetch(
-          `http://localhost:8080/auth/check-username?username=${inputs.username}`,
+          `http://localhost:9191/api/auth/check-username?username=${inputs.username}`,
           {
             method: "GET",
             headers: {
@@ -54,7 +54,7 @@ const Signup = () => {
         } else {
           // Chỉ parse JSON khi response ok
           const data = await res.json();
-          if (data.exists) {
+          if (data.result) {
             tempErrors.username = data.message;
           }
         }

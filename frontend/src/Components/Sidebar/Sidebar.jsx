@@ -286,7 +286,9 @@ const Sidebar = () => {
               className="absolute bottom-20 left-0 w-64 bg-white rounded-lg shadow-lg overflow-hidden z-50 ml-5"
             >
               <div className="py-2">
-                <button className="w-full px-4 py-3 flex items-center gap-3 text-gray-700 hover:bg-gray-100 text-left">
+                <button 
+                onClick={() => navigate("/settings")}
+                className="w-full px-4 py-3 flex items-center gap-3 text-gray-700 hover:bg-gray-100 text-left">
                   <Settings className="w-5 h-5" />
                   <span>Settings</span>
                 </button>

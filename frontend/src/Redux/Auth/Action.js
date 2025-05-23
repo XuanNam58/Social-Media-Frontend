@@ -18,12 +18,9 @@ export const loginAction = (data, showToast) => async (dispatch) => {
       data.email,
       data.password
     );
-    // const userDoc = await getDoc(doc(firestore, "users", userCredential.user.uid));
     const user = userCredential.user;
-    // Lấy Firebase ID token
     const idToken = await user.getIdToken();
 
-    // Gửi token đến backend
     const res = await fetch("http://localhost:9191/api/auth/login", {
       method: "POST",
       headers: {
@@ -32,21 +29,31 @@ export const loginAction = (data, showToast) => async (dispatch) => {
       },
     });
 
+    const responseData = await res.json();
+
     if (!res.ok) {
-      const errorData = await res.json();
-      showToast("Error", errorData.message || "Login failed", "error");
+      dispatch({ type: LOGIN_FAILURE, payload: responseData.message });
+      showToast("Error", responseData.message || "Login failed", "error");
+      return;
     }
 
-    const responseData = await res.json();
     const token = responseData.result.token;
-
-    console.log("login", token);
-
-    // localStorage.setItem("token", token);
     dispatch({ type: LOGIN_SUCCESS, payload: token });
   } catch (error) {
-    dispatch({ type: LOGIN_FAILURE, payload: error.message });
-    showToast("Error", error.message, "error");
+    let errorMessage = "An error occurred during login";
+    
+    if (error.code === "auth/invalid-credential") {
+      errorMessage = "Incorrect email or password. Please try again";
+    } else if (error.code === "auth/user-not-found") {
+      errorMessage = "No account found with this email";
+    } else if (error.code === "auth/wrong-password") {
+      errorMessage = "Incorrect password";
+    } else if (error.code === "auth/too-many-requests") {
+      errorMessage = "Too many failed login attempts. Please try again later";
+    }
+
+    dispatch({ type: LOGIN_FAILURE, payload: errorMessage });
+    showToast("Error", errorMessage, "error");
   }
 };
 

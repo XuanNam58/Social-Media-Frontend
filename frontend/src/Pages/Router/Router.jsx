@@ -7,6 +7,9 @@ import AuthPage from "../AuthPage/AuthPage";
 import ChatInterface from "../../Components/Message/ChatInterface";
 import FriendPage from "../FriendPage/FriendPage";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import ForgotPassword from "../../Components/AuthForm/ForgotPassword";
+import SettingsLayout from "../SettingPage/SettingsLayout";
+import ChangePassword from "../../Components/Setting/ChangePassword";
 
 const ProtectedRoute = ({ children }) => {
   const [loading, setLoading] = useState(true);
@@ -39,9 +42,10 @@ const ProtectedRouteWrapper = ({ children }) => (
 const Router = () => {
   const location = useLocation();
   const isAuthPage = location.pathname === "/auth";
+  const isForgotPasswordPage = location.pathname === "/forgot-password";
   const auth = getAuth();
   const [isAuthenticated, setIsAuthenticated] = useState(null);
-  
+
   useEffect(() => {
     let mounted = true;
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -56,12 +60,13 @@ const Router = () => {
 
   if (isAuthenticated === null) return <div>Loading...</div>;
   if (isAuthenticated && isAuthPage) return <Navigate to="/" replace />;
-  if (!isAuthenticated && !isAuthPage) return <Navigate to="/auth" replace />;
+  if (!isAuthenticated && !isAuthPage && !isForgotPasswordPage)
+    return <Navigate to="/auth" replace />;
 
   return (
     <div>
       <div className="flex">
-        {!isAuthPage && (
+        {!isAuthPage && !isForgotPasswordPage && (
           <div className="w-[20%] border-l-slate-500">
             <Sidebar />
           </div>
@@ -92,7 +97,19 @@ const Router = () => {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <SettingsLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="change-password" element={<ChangePassword />} />
+              {/* Add other settings routes here */}
+            </Route>
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/message" element={<ChatInterface />}></Route>
           </Routes>
         </div>

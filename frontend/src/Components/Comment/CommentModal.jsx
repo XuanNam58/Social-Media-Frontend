@@ -4,6 +4,9 @@ import {
   ModalBody,
   ModalContent,
   ModalOverlay,
+  Skeleton,
+  Stack,
+  Button,
 } from "@chakra-ui/react";
 import { getAuth } from "firebase/auth";
 import {
@@ -33,34 +36,34 @@ const CommentModal = ({
   const [newComment, setNewComment] = useState("");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [hasMoreComments, setHasMoreComments] = useState(true);
   const [userIndex, setUserIndex] = useState({});
   const [userPost, setUserPost] = useState({});
   const stompClientRef = useRef(null);
+  const commentContainerRef = useRef(null);
 
   const getCurrentDateTime = () => {
     const now = new Date();
-    const day = String(now.getDate()).padStart(2, "0");
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const year = now.getFullYear();
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    const seconds = String(now.getSeconds()).padStart(2, "0");
-
-    return `${day}-${month}-${year} ${hours}:${minutes}:${seconds}`;
+    return `${String(now.getDate()).padStart(2, "0")}-${String(
+      now.getMonth() + 1
+    ).padStart(2, "0")}-${now.getFullYear()} ${String(now.getHours()).padStart(
+      2,
+      "0"
+    )}:${String(now.getMinutes()).padStart(2, "0")}:${String(
+      now.getSeconds()
+    ).padStart(2, "0")}`;
   };
 
-
-  
   const getCompactTimestamp = () => {
     const now = new Date();
-    const day = String(now.getDate()).padStart(2, "0");
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const year = now.getFullYear();
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    const seconds = String(now.getSeconds()).padStart(2, "0");
-
-    return `${day}${month}${year}${hours}${minutes}${seconds}`;
+    return `${String(now.getDate()).padStart(2, "0")}${String(
+      now.getMonth() + 1
+    ).padStart(2, "0")}${now.getFullYear()}${String(now.getHours()).padStart(
+      2,
+      "0"
+    )}${String(now.getMinutes()).padStart(2, "0")}${String(
+      now.getSeconds()
+    ).padStart(2, "0")}`;
   };
 
   const getToken = async () => {
@@ -73,7 +76,7 @@ const CommentModal = ({
     if (!newComment.trim()) return;
 
     const commentData = {
-      commentId: userIndex.username + getCompactTimestamp(), 
+      commentId: userIndex.username + getCompactTimestamp(),
       postID: post.postId,
       username: userIndex.username,
       content: newComment,
@@ -83,15 +86,14 @@ const CommentModal = ({
     };
 
     try {
-      const res = await fetch("http://localhost:9191/api/comments/createComment", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(commentData),
-    });
-      
+      await fetch("http://localhost:9191/api/comments/createComment", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(commentData),
+      });
       setNewComment("");
     } catch (err) {
       console.error("Lỗi khi gửi comment:", err);
@@ -131,7 +133,11 @@ const CommentModal = ({
 
   const fetchComments = async () => {
     const token = await getToken();
-    if (!token || !post.username || !userIndex.username) return;
+    if (!token || !post.username || !userIndex.username || loading) return;
+
+    const container = commentContainerRef.current;
+    const prevScrollHeight = container?.scrollHeight || 0;
+
     setLoading(true);
     try {
       const res = await fetch(
@@ -139,10 +145,20 @@ const CommentModal = ({
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
-      const dataIm = data.result;
-      console.log("data",data);
-      console.log("dataIm",dataIm);
-      setComments((prev) => [...prev, ...dataIm]);
+
+      if (data.result.length < 5) {
+        setHasMoreComments(false);
+      }
+
+      setComments((prev) => [...prev, ...data.result]);
+
+      // Giữ vị trí cuộn cũ
+      setTimeout(() => {
+        if (container) {
+          const newScrollHeight = container.scrollHeight;
+          container.scrollTop = newScrollHeight - prevScrollHeight + container.scrollTop;
+        }
+      }, 0);
     } catch (err) {
       console.error("Lỗi khi lấy comments:", err);
     } finally {
@@ -150,13 +166,12 @@ const CommentModal = ({
     }
   };
 
-  // WebSocket setup
   useEffect(() => {
     const socket = new SockJS("http://localhost:9000/ws");
     const client = new Client({
       webSocketFactory: () => socket,
       onConnect: () => {
-        client.subscribe("/topic/comments", (msg) => {
+        client.subscribe(`/topic/comments/${post.postId}`, (msg) => {
           const newComment = JSON.parse(msg.body);
           setComments((prev) => [newComment, ...prev]);
         });
@@ -176,20 +191,20 @@ const CommentModal = ({
   }, []);
 
   useEffect(() => {
-    if (post.id) {
+    if (post.postId) {
       setComments([]);
       setPage(1);
       setNewComment("");
+      setHasMoreComments(true);
       fetchUserPost();
     }
-  }, [post.id]);
+  }, [post.postId]);
 
   useEffect(() => {
-    if (userIndex.username && post.postId){
+    if (userIndex.username && post.postId && hasMoreComments) {
       fetchComments();
     }
-    
-  }, [post.postId, userIndex.username]);
+  }, [page, post.postId, userIndex.username]);
 
   return (
     <Modal size="4xl" isOpen={isOpen} onClose={onClose} isCentered>
@@ -221,7 +236,6 @@ const CommentModal = ({
               {post.video && (
                 <video className="w-full" controls>
                   <source src={post.video} type="video/mp4" />
-                  Your browser does not support the video tag.
                 </video>
               )}
               <div className="flex justify-between items-center w-full py-4">
@@ -261,26 +275,44 @@ const CommentModal = ({
                 <BsThreeDots className="text-xl text-gray-500 cursor-pointer hover:opacity-60" />
               </div>
 
-              <div className="comment mt-2 max-h-[380px] overflow-y-auto">
-                {loading ? (
-                  <p className="text-center text-gray-500">Loading comments...</p>
+              <div
+                className="comment mt-2 max-h-[380px] overflow-y-auto pr-1"
+                ref={commentContainerRef}
+              >
+                {loading && page === 1 ? (
+                  <Stack spacing={4}>
+                    {[...Array(3)].map((_, idx) => (
+                      <div key={idx} className="flex items-start space-x-4">
+                        <Skeleton height="40px" width="40px" borderRadius="full" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton height="12px" width="60%" />
+                          <Skeleton height="12px" width="40%" />
+                        </div>
+                      </div>
+                    ))}
+                  </Stack>
                 ) : comments.length ? (
-                  comments.map((comment, idx) => <CommentCard key={idx} comment={comment} />)
+                  <>
+                    {comments.map((comment, idx) => (
+                      <CommentCard key={idx} comment={comment} />
+                    ))}
+                    {hasMoreComments && (
+                      <div className="text-center my-3">
+                        <Button
+                          onClick={() => setPage((prev) => prev + 1)}
+                          isLoading={loading}
+                          colorScheme="blue"
+                          size="sm"
+                        >
+                          Load more comments
+                        </Button>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <p className="text-center text-gray-500">No comments yet.</p>
                 )}
               </div>
-
-              {comments.length > 0 && !loading && (
-                <div className="text-center mt-5">
-                  <button
-                    onClick={() => setPage((prev) => prev + 1)}
-                    className="bg-blue-500 text-white px-4 py-2 rounded-md"
-                  >
-                    Load More
-                  </button>
-                </div>
-              )}
 
               <div className="absolute bottom-0 w-[90%]">
                 <div className="flex items-center">

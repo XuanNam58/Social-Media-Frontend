@@ -116,6 +116,7 @@ console.log(getCompactTimestamp()); // ➝ 18052025182503
       profilePicURL: userIndex.profilePicURL,
       content,
       date: getCurrentDateTime(),
+      uid: userIndex.uid,
     };
 
     if (mediaURL) {

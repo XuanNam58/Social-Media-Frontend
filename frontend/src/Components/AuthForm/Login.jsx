@@ -1,7 +1,7 @@
-import { Button, Input } from "@chakra-ui/react";
+import { Button, Input, Text } from "@chakra-ui/react";
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { loginAction } from "../../Redux/Auth/Action";
 import useShowToast from "../../Redux/useShowToast";
 import { getUserProfileAction } from "../../Redux/User/Action";
@@ -121,6 +121,12 @@ const Login = () => {
       >
         Log in
       </Button>
+
+      <Text fontSize="sm" textAlign="center" mt={2}>
+        <Link to="/forgot-password" style={{ color: "blue", textDecoration: "underline" }}>
+          Forgot Password?
+        </Link>
+      </Text>
     </>
   );
 };

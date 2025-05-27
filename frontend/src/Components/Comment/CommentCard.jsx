@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect,useRef } from "react";
 import { AiFillHeart, AiOutlineHeart } from "react-icons/ai";
 import axios from "axios";
 import { getAuth } from "firebase/auth";
+import SockJS from "sockjs-client";
+import { Client } from "@stomp/stompjs";
 
 const CommentCard = ({ comment }) => {
-  const { commentId, username, content, date, fullName, profilePicURL } = comment;
+  const { commentId, username, content, date, fullName, profilePicURL, numberOfLike } = comment;
 
   const [isLiked, setIsLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(23); // TODO: Replace with real like count
+  const [likeCount, setLikeCount] = useState(numberOfLike); // TODO: Replace with real like count
   const [replies, setReplies] = useState([]);
   const [showReplies, setShowReplies] = useState(false);
   const [replyText, setReplyText] = useState("");
@@ -15,6 +17,7 @@ const CommentCard = ({ comment }) => {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState({});
+  const stompClientRef = useRef(null);
 
   // Lấy token Firebase
   const getToken = async () => {
@@ -49,9 +52,85 @@ const CommentCard = ({ comment }) => {
     fetchUser();
   }, []);
 
-  const handleToggleLike = () => {
-    setIsLiked((prev) => !prev);
-    setLikeCount((prev) => (isLiked ? prev - 1 : prev + 1));
+  //check like
+  useEffect(() => {
+    setIsLiked(false);
+      const checkIfLiked = async () => {
+        const token = await getToken();
+        if (!user.username) return;
+  
+        try {
+          const response = await fetch(
+            `http://localhost:9191/api/likes/cmtLike/check?username=${user.username}&commentId=${commentId}`, {
+            headers: {
+              "Authorization": `Bearer ${token}`,
+            },
+          });
+          const data = await response.json();
+          if (data.result.liked) {
+            setIsLiked(true);
+          }
+        } catch (err) {
+          console.error("Error checking like status", err);
+        }
+      };
+      checkIfLiked();
+    }, [user.username, commentId]);
+
+  // ws the hien reply
+  useEffect(() => {
+      const socket = new SockJS("http://localhost:9000/ws");
+      const client = new Client({
+        webSocketFactory: () => socket,
+        onConnect: () => {
+          client.subscribe(`/topic/reply/${commentId}`, (msg) => {
+            const newReply = JSON.parse(msg.body);
+            setReplies((prev) => [newReply, ...prev]);
+          });
+        },
+      });
+  
+      client.activate();
+      stompClientRef.current = client;
+  
+      return () => {
+        client.deactivate();
+      };
+    }, []);
+  
+  //xu ly like
+  // const handleToggleLike = () => {
+  //   setIsLiked((prev) => !prev);
+  //   setLikeCount((prev) => (isLiked ? prev - 1 : prev + 1));
+  // };
+  const handleToggleLike = async () => {
+    const token = await getToken();
+    const like = {
+      commentId: commentId,
+      username: user.username,
+      tempContent: content,
+      fullName: user.fullName
+    };
+
+    try {
+      const response = await fetch("http://localhost:9191/api/likes/cmtLike/likes", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(like),
+      });
+
+      if (!response.ok) {
+        throw new Error("Lỗi khi gọi API like");
+      }
+
+      setIsLiked(!isLiked);
+      setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+    } catch (error) {
+      console.error("Lỗi khi xử lý like:", error.message);
+    }
   };
 
   const handleToggleReplies = () => {
@@ -97,9 +176,11 @@ const CommentCard = ({ comment }) => {
     if (!replyText.trim()) return;
 
     const newReply = {
-      commentID: commentId,
+      commentId: commentId,
       username: user.username,
       content: replyText,
+      fullName: user.fullName,
+      profilePicURL: user.profilePicURL,
     };
 
     try {
@@ -113,7 +194,7 @@ const CommentCard = ({ comment }) => {
           },
         }
       );
-      setReplies((prev) => [...prev, res.data]);
+    
       setReplyText("");
     } catch (err) {
       console.error("Error sending reply:", err);

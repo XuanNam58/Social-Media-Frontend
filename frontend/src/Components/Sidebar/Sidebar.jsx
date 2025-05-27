@@ -193,7 +193,7 @@ const Sidebar = () => {
       onConnect: () => {
         console.log("🔔 Connected to Notification WebSocket");
 
-        stompClient.subscribe("/topic/notifications", (message) => {
+        stompClient.subscribe(`/topic/notifications/${userIndex.username}`, (message) => {
           try {
             const sender = message.body; 
             console.log("sender",sender);

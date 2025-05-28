@@ -321,7 +321,6 @@ export default function ChatInterface() {
       await axios.post("http://localhost:4000/social/api/message/upload", formData, {
         headers: {
           Authorization: `Bearer ${firebaseToken}`,
-          "Content-Type": "multipart/form-data",
         },
       });
     } catch (error) {

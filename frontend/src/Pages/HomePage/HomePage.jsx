@@ -80,7 +80,7 @@ const HomePage = () => {
       if (!token) return;
       setLoading(true);
       try {
-        const response = await fetch(`http://localhost:9191/api/posts/getPosts?page=${page}&size=5`, {
+        const response = await fetch(`http://localhost:9191/api/posts/getPosts-home?uid=${userIndex.uid}&page=${page}&size=5`, {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,

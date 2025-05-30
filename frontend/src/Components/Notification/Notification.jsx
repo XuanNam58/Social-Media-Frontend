@@ -17,10 +17,10 @@ const Notification = ({ onClose }) => {
     const date = new Date(timestamp.seconds * 1000);
     const diff = Math.floor((now - date) / 1000);
 
-    if (diff < 60) return "Vừa xong";
-    if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
-    return `${Math.floor(diff / 86400)} ngày trước`;
+    if (diff < 60) return "Just now";
+    if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+    return `${Math.floor(diff / 86400)} days ago`;
   };
 
   const getToken = async () => {

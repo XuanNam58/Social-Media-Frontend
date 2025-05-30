@@ -30,6 +30,7 @@ export const loginAction = (data, showToast) => async (dispatch) => {
     });
 
     const responseData = await res.json();
+    console.log("ok: ",responseData.result);
 
     if (!res.ok) {
       dispatch({ type: LOGIN_FAILURE, payload: responseData.message });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { getAuth } from "firebase/auth";
 import {
   BsBookmark,
@@ -12,8 +12,11 @@ import { RiSendPlaneLine } from "react-icons/ri";
 import CommentModal from "../Comment/CommentModal";
 import { useDisclosure } from "@chakra-ui/react";
 import "./PostCard.css";
+import { FiEdit, FiTrash } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 
-const PostCard = ({ post }) => {
+
+const PostCard = ({ post,userLook,onPostDeleted }) => {
   const { postId, username, date, picture, content, video, numberOfLike, fullName, profilePicURL } = post;
   const [userIndex, setUserIndex] = useState({});
   const [showDropDown, setShowDropDown] = useState(false);
@@ -21,6 +24,53 @@ const PostCard = ({ post }) => {
   const [likeCount, setLikeCount] = useState(numberOfLike);
   const [isSaved, setIsSaved] = useState(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editedContent, setEditedContent] = useState(content);
+  const dropdownRef = useRef(null);
+  const editModalRef = useRef(null);
+  const deleteModalRef = useRef(null);
+  const navigate = useNavigate();
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const maxLength = 150; // số ký tự muốn hiển thị trước khi rút gọn
+  const isTruncated = post.content.length > maxLength;
+  const truncatedContent = isTruncated
+    ? post.content.slice(0, maxLength) + "..."
+    : post.content;
+
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropDown(false);
+      }
+
+      if (isEditModalOpen && editModalRef.current && !editModalRef.current.contains(event.target)) {
+        setIsEditModalOpen(false);
+      }
+
+      if (showConfirmModal && deleteModalRef.current && !deleteModalRef.current.contains(event.target)) {
+        setShowConfirmModal(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isEditModalOpen, showConfirmModal]);
+
+
+
+  const handleOpenEditModal = () => {
+    setEditedContent(content); // Load lại content hiện tại
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+  };
 
   const getToken = async () => {
     const auth = getAuth();
@@ -121,34 +171,231 @@ const PostCard = ({ post }) => {
     onOpen();
   };
 
+  const handleEdit = () => {
+  setShowDropDown(false);
+  // xử lý logic edit ở đây
+};
+
+const handleDelete = async () => {
+    const token = await getToken();
+    if (!token) return;
+
+    try {
+      const response = await fetch(
+        `http://localhost:9191/api/posts/deletePost/${post.postId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+      if (response.ok && data.code === 1000) {
+        if (onPostDeleted) onPostDeleted(post.postId);
+      } else {
+        console.error("Xoá thất bại:", data.message);
+      }
+    } catch (error) {
+      console.error("Lỗi khi xoá:", error);
+    } finally {
+      setShowConfirmModal(false);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    const token = await getToken();
+    try {
+      const response = await fetch(`http://localhost:9191/api/posts/updatePost/${postId}`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: editedContent }),
+      });
+
+      const data = await response.json();
+      if (response.ok && data.code === 1000) {
+        post.content = editedContent; // Cập nhật local
+        handleCloseEditModal();
+      } else {
+        console.error("Cập nhật thất bại:", data.message);
+      }
+    } catch (error) {
+      console.error("Lỗi khi cập nhật bài viết:", error);
+    }
+  };
+
   return (
     <div>
       <div className="border rounded-[30px] w-full">
         <div className="flex justify-between items-center w-full py-4 px-5">
           <div className="flex items-center">
-            <img className="h-12 w-12 rounded-full" src={profilePicURL} alt="" />
+            <img
+              className="h-12 w-12 rounded-full cursor-pointer hover:scale-105 transition-transform duration-300 shadow-sm hover:shadow-md"
+              src={profilePicURL}
+              alt=""
+              onClick={() => navigate(`/${username}`)}
+            />
+
             <div className="pl-2">
               <p className="font-semibold text-sm">{fullName}</p>
               <p className="font-thin text-sm">{date}</p>
             </div>
           </div>
           <div className="dropdown">
-            <BsThreeDots className="dots" onClick={handleClick} />
-            <div className="dropdown-content">
-              {showDropDown && (
-                <p className="bg-black text-white py-1 px-4 rounded-md cursor-pointer">
-                  Delete
-                </p>
-              )}
+            <BsThreeDots
+              className={`dots ${userIndex.username === userLook ? 'cursor-pointer' : 'cursor-default text-gray-400'}`}
+              onClick={() => {
+                if (userIndex.username === userLook) {
+                  handleClick();
+                }
+              }}
+            />
+            <div ref={dropdownRef} className="relative inline-block text-left">
+            {showDropDown && (
+              <div className="absolute right-0 z-10 mt-2 w-36 origin-top-right rounded-xl bg-white shadow-lg ring-1 ring-black ring-opacity-5">
+                <div className="py-1">
+                  <p
+                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-blue-600 cursor-pointer"
+                    onClick={() => {
+                      setShowDropDown(false);      
+                      handleOpenEditModal();       
+                    }}
+                  >
+                    <FiEdit className="mr-2" /> Edit
+                  </p>
+                  <p
+                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-red-600 cursor-pointer"
+                    onClick={() => {
+                      setShowDropDown(false);      
+                      setShowConfirmModal(true);   
+                    }}
+                  >
+                    <FiTrash className="mr-2" /> Delete
+                  </p>
+                </div>
+              </div>
+            )}
+      {isEditModalOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+        <div
+          ref={editModalRef}
+          className="bg-white rounded-xl shadow-lg p-6 w-[90%] max-w-md max-h-[90vh] overflow-hidden flex flex-col"
+        >
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Edit Post</h2>
+          <div className="flex items-center">
+            <img
+              className="h-12 w-12 rounded-full cursor-pointer hover:scale-105 transition-transform duration-300 shadow-sm hover:shadow-md"
+              src={profilePicURL}
+              alt=""
+              onClick={() => navigate(`/${username}`)}
+            />
+            <div className="pl-2">
+              <p className="font-semibold text-sm">{fullName}</p>
+              <p className="font-thin text-sm">{date}</p>
             </div>
+          </div>
+
+          {/* Bọc nội dung bằng div có scroll nếu dài */}
+          <div className="overflow-y-auto mt-4 mb-4 pr-1" style={{ maxHeight: '55vh' }}>
+            <textarea
+              className="w-full border border-gray-300 rounded p-2 resize-none mb-4"
+              style={{ height: "60px" }}
+              value={editedContent}
+              onChange={(e) => setEditedContent(e.target.value)}
+            />
+
+            {picture && (
+              <div className="w-full pb-4">
+                <img className="w-full rounded-lg" src={picture} alt="" />
+              </div>
+            )}
+
+            {video && (
+              <div className="w-full pb-4">
+                <video className="w-full rounded-lg" controls>
+                  <source src={video} type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end space-x-4">
+            <button
+              onClick={handleCloseEditModal}
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveEdit}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+
+
+
+      {/* Confirm delete modal */}
+          {showConfirmModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+        <div
+          ref={deleteModalRef}
+          className="bg-white rounded-xl shadow-lg p-6 w-[90%] max-w-md"
+        >
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">
+            Confirm delete
+          </h2>
+          <p className="text-sm text-gray-600 mb-6">
+            Are you sure you want to delete this post? This action cannot be undone.
+          </p>
+          <div className="flex justify-end space-x-4">
+            <button
+              onClick={() => setShowConfirmModal(false)}
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDelete}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+            </div>
+
+
           </div>
         </div>
 
         <div className="px-4 pb-4">
-          <p>
-            <span className="font-semibold">{content}</span>
+          <p className="font-semibold text-sm whitespace-pre-line">
+            {isExpanded ? content : truncatedContent}
+            {isTruncated && !isExpanded && (
+              <span
+                onClick={() => setIsExpanded(true)}
+                className="font-semibold text-sm text-bray-300 cursor-pointer ml-2"
+              >
+                read more
+              </span>
+            )}
           </p>
         </div>
+
 
         {picture && (
           <div className="w-full">
@@ -233,7 +480,10 @@ const PostCard = ({ post }) => {
         isSaved={isSaved}
       />
     </div>
+    
   );
 };
+
+
 
 export default PostCard;

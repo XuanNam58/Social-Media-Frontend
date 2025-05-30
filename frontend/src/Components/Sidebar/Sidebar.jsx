@@ -8,7 +8,6 @@ import { logoutAction } from "../../Redux/Auth/Action";
 import Search from "../Search/Search";
 import Notification from "../Notification/Notification";
 import { Client } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
 import {
   Settings,
   BarChart2,
@@ -34,6 +33,9 @@ const Sidebar = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
   const [userIndex, setUserIndex] = useState(null);
+  const [messageNotificationCount, setMessageNotificationCount] = useState(0);
+  const [conversations, setConversations] = useState([]);
+  const wsRef = useRef(null);
 
   const getToken = async () => {
     const auth = getAuth();
@@ -49,23 +51,17 @@ const Sidebar = () => {
 
   useEffect(() => {
     if (isLoggingOut) return;
-    const getToken = async () => {
-      if (!isLoggingOut && auth.currentUser) {
-        const token = await auth.currentUser.getIdToken();
-        setToken(token);
-      } else {
-        setToken(null);
-      }
+    const fetchToken = async () => {
+      const token = await getToken();
+      setToken(token);
     };
-    getToken();
-  }, [isLoggingOut, auth.currentUser]);
+    fetchToken();
+  }, [isLoggingOut]);
 
   useEffect(() => {
-    if (isLoggingOut || !token || !auth.currentUser) return;
-    if (token && auth.currentUser) {
-      dispatch(getUserProfileAction(token));
-    }
-  }, [token, auth.currentUser, isLoggingOut, dispatch]);
+    if (isLoggingOut || !token) return;
+    dispatch(getUserProfileAction(token));
+  }, [token, dispatch, isLoggingOut]);
 
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -79,11 +75,9 @@ const Sidebar = () => {
         setIsOpen(false);
       }
     };
-
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
-
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
@@ -91,19 +85,20 @@ const Sidebar = () => {
 
   const handleTabClick = (title) => {
     if (title === "Search") {
-      const auth = getAuth()
-      dispatch(getRecentSearchAction({
-        searcherId: auth.currentUser.uid,
-        token: token
-    }))
+      dispatch(
+        getRecentSearchAction({
+          searcherId: auth.currentUser?.uid,
+          token,
+        })
+      );
       setShowSearch(!showSearch);
-      if (showNotification) setShowNotification(false); // Đóng notification nếu đang mở
+      if (showNotification) setShowNotification(false);
       return;
     }
     if (title === "Notifications") {
       setShowNotification(!showNotification);
       setNotificationCount(0);
-      if (showSearch) setShowSearch(false); // Đóng search nếu đang mở
+      if (showSearch) setShowSearch(false);
       return;
     }
     if (showSearch) setShowSearch(false);
@@ -135,11 +130,9 @@ const Sidebar = () => {
         setShowSearch(false);
       }
     };
-
     if (showSearch) {
       document.addEventListener("mousedown", handleClickOutside);
     }
-
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
@@ -189,26 +182,30 @@ const Sidebar = () => {
   useEffect(() => {
     if (!userIndex || !userIndex.username) return;
 
-    const socket = new SockJS("http://localhost:9001/ws");
+    const socket = new WebSocket("ws://localhost:9001/ws"); // Cập nhật WebSocket cho notification
     const stompClient = new Client({
       webSocketFactory: () => socket,
-      onConnect: () => {
-        console.log("🔔 Connected to Notification WebSocket");
-
-        stompClient.subscribe(`/topic/notifications/${userIndex.username}`, (message) => {
-          try {
-            const sender = message.body; 
-            console.log("sender",sender);
-            console.log("index",userIndex.username)
-            if (sender !== userIndex.username) {
-              setNotificationCount((prev) => prev + 1);
-            }
-          } catch (error) {
-            console.error("Lỗi khi xử lý notification message:", error);
-          }
-        });
-      },
+      debug: (str) => console.log("Notification WebSocket Debug:", str),
+      reconnectDelay: 5000,
     });
+
+    stompClient.onConnect = () => {
+      console.log("🔔 Connected to Notification WebSocket");
+      stompClient.subscribe(`/topic/notifications/${userIndex.username}`, (message) => {
+        try {
+          const sender = message.body;
+          if (sender !== userIndex.username) {
+            setNotificationCount((prev) => prev + 1);
+          }
+        } catch (error) {
+          console.error("Lỗi khi xử lý notification message:", error);
+        }
+      });
+    };
+
+    stompClient.onStompError = (frame) => {
+      console.error("Notification WebSocket error:", frame);
+    };
 
     stompClient.activate();
 
@@ -217,6 +214,103 @@ const Sidebar = () => {
     };
   }, [userIndex]);
 
+  // SỬA: Dùng WebSocket thuần cho tin nhắn
+  useEffect(() => {
+    if (!token || !auth.currentUser?.uid) return;
+
+    const client = new Client({
+      webSocketFactory: () => new WebSocket("ws://localhost:4000/social/api/message/ws"),
+      connectHeaders: { Authorization: `Bearer ${token}` },
+      debug: (str) => console.log("Message WebSocket Debug:", str),
+      reconnectDelay: 5000,
+    });
+
+    client.onConnect = () => {
+      console.log("Đã kết nối WebSocket cho tin nhắn");
+      client.subscribe("/topic/conversations", (message) => {
+        try {
+          const data = JSON.parse(message.body);
+          if (data.type === "conversation_update") {
+            setConversations((prev) => {
+              const updatedConversation = {
+                conversationId: data.conversationId,
+                listUser: data.listUser,
+                name: data.name,
+                avatarUrl: data.avatarUrl,
+                lastMessage: data.lastMessage,
+                lastUpdate: new Date(data.lastUpdate).getTime(),
+                unreadCount: data.unreadCount || {},
+              };
+
+              const existingIndex = prev.findIndex(
+                (c) => c.conversationId === data.conversationId
+              );
+              let updatedConversations;
+              if (existingIndex !== -1) {
+                updatedConversations = [...prev];
+                updatedConversations[existingIndex] = updatedConversation;
+              } else {
+                updatedConversations = [updatedConversation, ...prev];
+              }
+
+              const totalUnread = updatedConversations.reduce(
+                (sum, conv) => sum + (conv.unreadCount[auth.currentUser.uid] || 0),
+                0
+              );
+              setMessageNotificationCount(totalUnread);
+
+              return updatedConversations.sort((a, b) => b.lastUpdate - a.lastUpdate);
+            });
+          }
+        } catch (error) {
+          console.error("Lỗi xử lý WebSocket message:", error);
+        }
+      });
+    };
+
+    client.onStompError = (frame) => {
+      console.error("Lỗi WebSocket tin nhắn:", frame);
+    };
+
+    client.onWebSocketClose = () => {
+      console.log("WebSocket tin nhắn ngắt kết nối");
+    };
+
+    client.activate();
+    wsRef.current = client;
+
+    return () => {
+      client.deactivate();
+      console.log("WebSocket tin nhắn đã ngắt kết nối");
+    };
+  }, [token, auth.currentUser?.uid]);
+
+  useEffect(() => {
+    if (!token || !auth.currentUser?.uid) return;
+
+    const fetchInitialConversations = async () => {
+      try {
+        const response = await fetch("http://localhost:4000/social/api/message/get-all-contact", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+        if (!response.ok) throw new Error("Lỗi tải hội thoại");
+        const contacts = await response.json();
+        setConversations(contacts);
+        const totalUnread = contacts.reduce(
+          (sum, conv) => sum + (conv.unreadCount?.[auth.currentUser.uid] || 0),
+          0
+        );
+        setMessageNotificationCount(totalUnread);
+      } catch (error) {
+        console.error("Lỗi tải danh sách cuộc hội thoại:", error);
+      }
+    };
+
+    fetchInitialConversations();
+  }, [token, auth.currentUser?.uid]);
 
   return (
     <>
@@ -249,8 +343,18 @@ const Sidebar = () => {
                   onClick={() => handleTabClick(item.title)}
                   className="flex items-center mb-5 cursor-pointer text-lg"
                 >
-                  <div className="w-12 flex justify-center">
+                  <div className="w-12 flex justify-center relative">
                     {activeTab === item.title ? item.activeIcon : item.icon}
+                    {item.title === "Message" && messageNotificationCount > 0 && (
+                      <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                        {messageNotificationCount}
+                      </span>
+                    )}
+                    {item.title === "Notifications" && notificationCount > 0 && (
+                      <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                        {notificationCount}
+                      </span>
+                    )}
                   </div>
                   {!(showSearch || showNotification) && (
                     <p
@@ -286,9 +390,10 @@ const Sidebar = () => {
               className="absolute bottom-20 left-0 w-64 bg-white rounded-lg shadow-lg overflow-hidden z-50 ml-5"
             >
               <div className="py-2">
-                <button 
-                onClick={() => navigate("/settings")}
-                className="w-full px-4 py-3 flex items-center gap-3 text-gray-700 hover:bg-gray-100 text-left">
+                <button
+                  onClick={() => navigate("/settings")}
+                  className="w-full px-4 py-3 flex items-center gap-3 text-gray-700 hover:bg-gray-100 text-left"
+                >
                   <Settings className="w-5 h-5" />
                   <span>Settings</span>
                 </button>
@@ -309,18 +414,14 @@ const Sidebar = () => {
                   <span>Report a problem</span>
                 </button>
               </div>
-
               <div className="h-px bg-gray-200"></div>
-
               <div className="py-2">
                 <button className="w-full px-4 py-3 flex items-center gap-3 text-gray-700 hover:bg-gray-100 text-left">
                   <Users className="w-5 h-5" />
                   <span>Switch accounts</span>
                 </button>
               </div>
-
               <div className="h-px bg-gray-200"></div>
-
               <div className="py-2">
                 <button
                   onClick={handleLogout}

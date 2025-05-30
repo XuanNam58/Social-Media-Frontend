@@ -23,6 +23,7 @@ import {
 } from "../../Redux/User/Action";
 import { getAuth } from "firebase/auth";
 import axios from "axios";
+import { useNavigate } from "react-router-dom"; // Thêm useNavigate để điều hướng
 
 const profile = {
   username: "ganknow",
@@ -32,7 +33,7 @@ const profile = {
   name: "Gank",
   description:
     "Gank is a content membership platform that helps content creators accept donations, manage memberships and sell merch, for free.",
-  avatar: "https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_1280.png"
+  avatar: "https://cdn.pixabay.com/photo/2024/02/15/16/57/cat-8575768_1280.png",
 };
 
 const AUTH_API = "http://localhost:9191/api/auth/users";
@@ -61,6 +62,7 @@ const ProfileUserDetailChange = ({
   const [token, setToken] = useState(null);
   const user = useSelector((store) => store.user);
   const [userProfile, setUserProfile] = useState(userParam);
+  const navigate = useNavigate(); // Thêm useNavigate để điều hướng
 
   // State cho form chỉnh sửa
   const [editFullName, setEditFullName] = useState(userParam.fullName || "");
@@ -194,7 +196,7 @@ const ProfileUserDetailChange = ({
         ...userProfile,
         bio: editBio || userProfile.bio,
         fullName: editFullName || userProfile.fullName,
-        profilePicURL: editFile ? previewAvatar : userProfile.profilePicURL, // Sử dụng previewAvatar nếu có file
+        profilePicURL: editFile ? previewAvatar : userProfile.profilePicURL,
       });
 
       onEditClose();
@@ -204,6 +206,11 @@ const ProfileUserDetailChange = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Xử lý khi nhấp vào nút Message
+  const handleMessageClick = () => {
+    navigate("/message", { state: { targetUser: userProfile } });
   };
 
   // Kiểm tra và sử dụng profilePicURL hoặc profilePicUrl
@@ -242,7 +249,12 @@ const ProfileUserDetailChange = ({
                     "Following"
                   )}
                 </button>
-                <button className="border px-4 py-1 rounded-lg">Message</button>
+                <button
+                  className="border px-4 py-1 rounded-lg"
+                  onClick={handleMessageClick}
+                >
+                  Message
+                </button>
               </>
             ) : (
               <>
@@ -257,7 +269,12 @@ const ProfileUserDetailChange = ({
                     "Follow"
                   )}
                 </button>
-                <button className="border px-4 py-1 rounded-lg">Message</button>
+                <button
+                  className="border px-4 py-1 rounded-lg"
+                  onClick={handleMessageClick}
+                >
+                  Message
+                </button>
               </>
             )}
           </div>

@@ -1,4 +1,6 @@
 "use client";
+import { useLocation } from "react-router-dom";
+
 import { db } from "../../firebase/messageFirebase";
 import {
   collection,
@@ -46,6 +48,7 @@ const getToken = async () => {
 };
 
 export default function ChatInterface() {
+  const { state } = useLocation();
   const [activeContact, setActiveContact] = useState(null);
   const [messageInput, setMessageInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -56,9 +59,12 @@ export default function ChatInterface() {
   const [currentUser, setCurrentUser] = useState("");
   const [firebaseToken, setToken] = useState("");
   const [userDetails, setUserDetails] = useState({});
-  const [lastConversationSnapshot, setLastConversationSnapshot] = useState(null); // Thêm state
-  const [firstMessageSnapshot, setFirstMessageSnapshot] = useState(null); // Thêm state
-  const [hasMoreMessages, setHasMoreMessages] = useState(true); // Thêm state
+  const [lastConversationSnapshot, setLastConversationSnapshot] = useState(null);
+  const [firstMessageSnapshot, setFirstMessageSnapshot] = useState(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [targetUserInfo, setTargetUserInfo] = useState(null); // Lưu thông tin người lạ
+  const { targetUser } = state || {};
+  const initialTargetUserId = targetUser?.uid;
 
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -90,6 +96,15 @@ export default function ChatInterface() {
             }
           });
         });
+
+        // Cập nhật userDetails với targetUser nếu chưa có
+        if (targetUser && !userMap[targetUser.uid]) {
+          userMap[targetUser.uid] = {
+            fullName: targetUser.fullName || "Unknown",
+            avatarUrl: targetUser.profilePicURL || targetUser.profilePicUrl || "https://via.placeholder.com/40",
+          };
+        }
+
         setUserDetails(userMap);
         setContacts(contactsData.slice(0, 10));
 
@@ -99,27 +114,42 @@ export default function ChatInterface() {
         );
 
         let userInfo = { userId: userData.userId, username: "Unknown", avatar: "https://via.placeholder.com/40" };
-        if (contactsData.length > 0) {
-          const first = contactsData[0];
-          const otherUser = first.users?.find((user) => user.id !== userData.userId);
-          if (otherUser) {
-            userInfo = {
-              userId: userData.userId,
-              fullName: otherUser.fullName || "Unknown",
-              avatar: otherUser.avatarUrl || "https://via.placeholder.com/40",
-            };
-          }
-          setActiveContact(first);
-        }
         setCurrentUser(userInfo);
+
+        if (targetUser) {
+          const existingContact = contactsData.find((contact) =>
+            contact.listUser?.includes(targetUser.uid) && contact.listUser?.includes(currentUser.userId)
+          );
+          if (existingContact) {
+            setActiveContact(existingContact);
+            setTargetUserInfo(null);
+          } else {
+            setTargetUserInfo({
+              userId: targetUser.uid,
+              fullName: targetUser.fullName || "Unknown",
+              avatarUrl: targetUser.profilePicURL || targetUser.profilePicUrl || "https://via.placeholder.com/40",
+            });
+            setActiveContact({
+              conversationId: null,
+              listUser: [currentUser.userId, targetUser.uid],
+              name: targetUser.fullName || "Unknown",
+              avatarUrl: targetUser.profilePicURL || targetUser.profilePicUrl || "https://via.placeholder.com/40",
+              lastMessage: "",
+              lastUpdate: null,
+              unreadCount: {},
+            });
+          }
+        } else if (contactsData.length > 0) {
+          setActiveContact(contactsData[0]);
+        }
+
+        setIsLoading(false);
       } catch (error) {
         console.error("Lỗi khi tải dữ liệu:", error);
-      } finally {
-        setIsLoading(false);
       }
     };
     loadInitialData();
-  }, []);
+  }, [targetUser, currentUser.userId]);
 
   useEffect(() => {
     const conversationId = activeContact?.conversationId;
@@ -177,6 +207,8 @@ export default function ChatInterface() {
     return () => unsub();
   }, [activeContact?.conversationId, firebaseToken]);
 
+
+  // Load convert google.daytime
   useEffect(() => {
     let initialLoad = true;
     const q = query(collection(db, "conversations"), orderBy("lastUpdate", "desc"), limit(10));
@@ -184,10 +216,20 @@ export default function ChatInterface() {
     const unsub = onSnapshot(q, (snapshot) => {
       const updatedContacts = snapshot.docs.map((doc) => {
         const data = doc.data();
+        // Xử lý lastUpdate từ Firestore hoặc API
+        let lastUpdateValue;
+        if (data.lastUpdate && typeof data.lastUpdate === "object" && "toDate" in data.lastUpdate) {
+          // Trường hợp từ Firestore (onSnapshot)
+          lastUpdateValue = data.lastUpdate?.toDate?.().getTime() || null;
+        } else {
+          // Trường hợp từ API (đã là mili giây)
+          lastUpdateValue = typeof data.lastUpdate === "number" ? data.lastUpdate : null;
+        }
+
         return {
-          id: doc.id,
+          conversationId: doc.id,
           ...data,
-          lastUpdate: data.lastUpdate?.toDate?.().getTime() || null,
+          lastUpdate: lastUpdateValue,
           users: data.users || [],
         };
       });
@@ -312,19 +354,75 @@ export default function ChatInterface() {
     setMessageInput("");
     setSelectedFiles([]);
 
-    const formData = new FormData();
-    activeContact.listUser.forEach((userId) => formData.append("list-user", userId));
-    formData.append("context", messageInput);
-    selectedFiles.forEach((file) => formData.append("listMediaFile", file));
+    let conversationId = activeContact?.conversationId;
+    let updatedContact = { ...activeContact }; // Sao chép activeContact hiện tại
 
-    try {
-      await axios.post("http://localhost:4000/social/api/message/upload", formData, {
-        headers: {
-          Authorization: `Bearer ${firebaseToken}`,
-        },
-      });
-    } catch (error) {
-      console.error("Gửi tin nhắn thất bại:", error);
+    if (!conversationId && targetUserInfo) {
+      try {
+        const formData = new FormData();
+        formData.append("list-user", currentUser.userId);
+        formData.append("list-user", targetUserInfo.userId);
+        formData.append("context", messageInput);
+        selectedFiles.forEach((file) => formData.append("listMediaFile", file));
+
+        const response = await axios.post(
+          "http://localhost:4000/social/api/message/upload",
+          formData,
+          { headers: { Authorization: `Bearer ${firebaseToken}` } }
+        );
+        conversationId = response.data.conversationId;
+
+        // Cập nhật activeContact với thông tin từ targetUserInfo
+        setActiveContact((prev) => ({
+          ...prev,
+          conversationId,
+          name: targetUserInfo.fullName,
+          avatarUrl: targetUserInfo.avatarUrl,
+        }));
+
+        // Không cần setTargetUserInfo(null), giữ lại cho đến khi cần
+      } catch (error) {
+        console.error("Gửi tin nhắn thất bại hoặc tạo conversation lỗi:", error);
+        return;
+      }
+    } else if (conversationId) {
+      // Trường hợp cuộc hội thoại đã tồn tại
+      const formData = new FormData();
+      activeContact.listUser.forEach((userId) => formData.append("list-user", userId));
+      formData.append("context", messageInput);
+      selectedFiles.forEach((file) => formData.append("listMediaFile", file));
+
+      const response = await axios.post(
+        "http://localhost:4000/social/api/message/upload",
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${firebaseToken}`,
+          },
+        }
+      );
+
+      // Lấy thông tin cuộc hội thoại mới nhất từ server hoặc Firestore
+      const conversationDoc = await getDoc(doc(db, "conversations", conversationId));
+      if (conversationDoc.exists()) {
+        const conversationData = conversationDoc.data();
+        updatedContact = {
+          ...activeContact,
+          lastMessage: messageInput || activeContact.lastMessage,
+          lastUpdate: conversationData.lastUpdate?.toDate?.().getTime() || Date.now(),
+          unreadCount: conversationData.unreadCount || activeContact.unreadCount,
+        };
+        setActiveContact(updatedContact);
+
+        // Cập nhật danh sách contacts để đồng bộ
+        setContacts((prev) =>
+          prev.map((contact) =>
+            contact.conversationId === conversationId
+              ? { ...contact, ...updatedContact }
+              : contact
+          )
+        );
+      }
     }
   };
 
@@ -483,19 +581,24 @@ export default function ChatInterface() {
               <div className="flex items-center">
                 <img
                   src={
-                    activeContact.listUser?.length >= 3
-                      ? activeContact.avatarUrl || "https://via.placeholder.com/40"
-                      : userDetails[activeContact.listUser?.find((id) => id !== currentUser.userId)]?.avatarUrl ||
-                        "https://via.placeholder.com/40"
+                    activeContact?.conversationId
+                      ? activeContact.avatarUrl || // Ưu tiên avatar từ activeContact
+                      (activeContact.listUser?.length >= 3
+                        ? activeContact.avatarUrl || "https://via.placeholder.com/40"
+                        : userDetails[activeContact.listUser?.find((id) => id !== currentUser.userId)]?.avatarUrl ||
+                        "https://via.placeholder.com/40")
+                      : targetUserInfo?.avatarUrl || "https://via.placeholder.com/40"
                   }
                   alt="Contact avatar"
                   className="h-10 w-10 rounded-full object-cover"
                 />
                 <div className="ml-3">
                   <p className="font-medium text-gray-800">
-                    {activeContact.listUser?.length >= 3
-                      ? activeContact.name || "Nhóm chat"
-                      : userDetails[activeContact.listUser?.find((id) => id !== currentUser.userId)]?.fullName || "Unknown"}
+                    {activeContact.conversationId
+                      ? activeContact.listUser?.length >= 3
+                        ? activeContact.name || "Nhóm chat"
+                        : userDetails[activeContact.listUser?.find((id) => id !== currentUser.userId)]?.fullName || "Unknown"
+                      : targetUserInfo?.fullName || "Unknown"}
                   </p>
                   <p className="text-xs text-gray-500">Đang hoạt động</p>
                 </div>
@@ -515,16 +618,16 @@ export default function ChatInterface() {
                   Load More Messages
                 </button>
               )}
-              {(conversationMessages[activeContact.conversationId] || []).map((msg, idx) => {
+              {(conversationMessages[activeContact?.conversationId] || []).map((msg, idx) => {
                 const isUser = msg.sender === currentUser.userId;
                 const isGroupChat = activeContact.listUser?.length >= 3;
                 const sender = isUser
                   ? currentUser
                   : userDetails[msg.sender] || {
-                      id: msg.sender,
-                      fullName: "Unknown User",
-                      avatarUrl: "https://via.placeholder.com/40",
-                    };
+                    id: msg.sender,
+                    fullName: "Unknown User",
+                    avatarUrl: "https://via.placeholder.com/40",
+                  };
                 return (
                   <div
                     key={msg.id || idx}
@@ -547,7 +650,20 @@ export default function ChatInterface() {
                           isUser ? "bg-gray-300 text-black" : "bg-gray-100 text-gray-800"
                         )}
                       >
-                        {msg.media && <img src={msg.media} className="max-w-full rounded-lg" />}
+                        {/* Hiển thị nhiều ảnh nếu msg.media là mảng */}
+                        {msg.media &&
+                          (Array.isArray(msg.media) ? (
+                            msg.media.map((mediaUrl, index) => (
+                              <img
+                                key={index}
+                                src={mediaUrl}
+                                alt={`media-${index}`}
+                                className="max-w-full rounded-lg mb-2"
+                              />
+                            ))
+                          ) : (
+                            <img src={msg.media} alt="media" className="max-w-full rounded-lg mb-2" />
+                          ))}
                         {msg.context?.trim() && <p>{msg.context}</p>}
                       </div>
                     </div>
@@ -566,7 +682,7 @@ export default function ChatInterface() {
                       <img
                         src={imageUrl}
                         alt={`preview-${index}`}
-                        className="h-35 w-35 object-cover rounded-md"
+                        className="h-12 w-12 object-cover rounded-md"
                       />
                       <button
                         onClick={() => {

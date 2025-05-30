@@ -184,7 +184,7 @@ const CommentModal = ({
     return () => {
       client.deactivate();
     };
-  }, []);
+  }, [post.postId]);
 
   useEffect(() => {
     fetchCurrentUser();
@@ -213,7 +213,7 @@ const CommentModal = ({
         <ModalBody>
           <div className="flex h-[75vh]">
             {/* Left */}
-            <div className="w-[45%] flex flex-col">
+            <div className="w-[45%] flex flex-col overflow-y-auto max-h-[70vh] pr-2">
               <div className="flex items-center pt-3">
                 <img
                   className="h-12 w-12 rounded-full"

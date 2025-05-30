@@ -223,7 +223,7 @@ const Profile = () => {
         isFollowing={isFollowing}
       />
       <div className="mt-8">
-        <ReqUserPostPart posts={profileUser.posts} />
+        <ReqUserPostPart user={profileUser} />
       </div>
     </div>
   );

@@ -96,7 +96,7 @@ const CommentCard = ({ comment }) => {
       return () => {
         client.deactivate();
       };
-    }, []);
+    }, [commentId]);
   
   //xu ly like
   // const handleToggleLike = () => {

@@ -263,7 +263,7 @@ const ProfileUserDetailChange = ({
           </div>
 
           <div className="flex justify-center mt-4 text-gray-700 space-x-6 text-sm font-medium">
-            <span>{userProfile.postNum || 0} posts</span>
+            
             <span
               className="cursor-pointer hover:text-gray-900"
               onClick={handleOpenFollowers}

@@ -8,6 +8,7 @@ import { logoutAction } from "../../Redux/Auth/Action";
 import Search from "../Search/Search";
 import Notification from "../Notification/Notification";
 import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 import {
   Settings,
   BarChart2,
@@ -51,17 +52,23 @@ const Sidebar = () => {
 
   useEffect(() => {
     if (isLoggingOut) return;
-    const fetchToken = async () => {
-      const token = await getToken();
-      setToken(token);
+    const getToken = async () => {
+      if (!isLoggingOut && auth.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        setToken(token);
+      } else {
+        setToken(null);
+      }
     };
-    fetchToken();
-  }, [isLoggingOut]);
+    getToken();
+  }, [isLoggingOut, auth.currentUser]);
 
   useEffect(() => {
-    if (isLoggingOut || !token) return;
-    dispatch(getUserProfileAction(token));
-  }, [token, dispatch, isLoggingOut]);
+    if (isLoggingOut || !token || !auth.currentUser) return;
+    if (token && auth.currentUser) {
+      dispatch(getUserProfileAction(token));
+    }
+  }, [token, auth.currentUser, isLoggingOut, dispatch]);
 
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -85,20 +92,19 @@ const Sidebar = () => {
 
   const handleTabClick = (title) => {
     if (title === "Search") {
-      dispatch(
-        getRecentSearchAction({
-          searcherId: auth.currentUser?.uid,
-          token,
-        })
-      );
+      const auth = getAuth()
+      dispatch(getRecentSearchAction({
+        searcherId: auth.currentUser.uid,
+        token: token
+    }))
       setShowSearch(!showSearch);
-      if (showNotification) setShowNotification(false);
+      if (showNotification) setShowNotification(false); // Đóng notification nếu đang mở
       return;
     }
     if (title === "Notifications") {
       setShowNotification(!showNotification);
       setNotificationCount(0);
-      if (showSearch) setShowSearch(false);
+      if (showSearch) setShowSearch(false); // Đóng search nếu đang mở
       return;
     }
     if (showSearch) setShowSearch(false);
@@ -182,30 +188,26 @@ const Sidebar = () => {
   useEffect(() => {
     if (!userIndex || !userIndex.username) return;
 
-    const socket = new WebSocket("ws://localhost:9001/ws"); // Cập nhật WebSocket cho notification
+    const socket = new SockJS("http://localhost:9001/ws");
     const stompClient = new Client({
       webSocketFactory: () => socket,
-      debug: (str) => console.log("Notification WebSocket Debug:", str),
-      reconnectDelay: 5000,
-    });
+      onConnect: () => {
+        console.log("🔔 Connected to Notification WebSocket");
 
-    stompClient.onConnect = () => {
-      console.log("🔔 Connected to Notification WebSocket");
-      stompClient.subscribe(`/topic/notifications/${userIndex.username}`, (message) => {
-        try {
-          const sender = message.body;
-          if (sender !== userIndex.username) {
-            setNotificationCount((prev) => prev + 1);
+        stompClient.subscribe(`/topic/notifications/${userIndex.username}`, (message) => {
+          try {
+            const sender = message.body; 
+            console.log("sender",sender);
+            console.log("index",userIndex.username)
+            if (sender !== userIndex.username) {
+              setNotificationCount((prev) => prev + 1);
+            }
+          } catch (error) {
+            console.error("Lỗi khi xử lý notification message:", error);
           }
-        } catch (error) {
-          console.error("Lỗi khi xử lý notification message:", error);
-        }
-      });
-    };
-
-    stompClient.onStompError = (frame) => {
-      console.error("Notification WebSocket error:", frame);
-    };
+        });
+      },
+    });
 
     stompClient.activate();
 
@@ -214,7 +216,7 @@ const Sidebar = () => {
     };
   }, [userIndex]);
 
-  // SỬA: Dùng WebSocket thuần cho tin nhắn
+  //Dùng WebSocket thuần cho tin nhắn
   useEffect(() => {
     if (!token || !auth.currentUser?.uid) return;
 
@@ -317,14 +319,12 @@ const Sidebar = () => {
       {showSearch && <Search onClose={handleCloseSearch} />}
       {showNotification && <Notification onClose={handleCloseNotification} />}
       <div
-        className={`sticky top-0 h-[100vh] ${
-          showSearch || showNotification ? "w-20" : "w-[250px]"
-        } transition-all duration-200`}
+        className={`sticky top-0 h-[100vh] ${showSearch || showNotification ? "w-20" : "w-[250px]"
+          } transition-all duration-200`}
       >
         <div
-          className={`flex flex-col justify-between h-full ${
-            showSearch || showNotification ? "px-2" : "px-10"
-          }`}
+          className={`flex flex-col justify-between h-full ${showSearch || showNotification ? "px-2" : "px-10"
+            }`}
         >
           <div>
             <div className="pt-10">
@@ -358,11 +358,10 @@ const Sidebar = () => {
                   </div>
                   {!(showSearch || showNotification) && (
                     <p
-                      className={`${
-                        activeTab === item.title
+                      className={`${activeTab === item.title
                           ? "font-bold"
                           : "font-semibold"
-                      }`}
+                        }`}
                     >
                       {item.title}
                     </p>

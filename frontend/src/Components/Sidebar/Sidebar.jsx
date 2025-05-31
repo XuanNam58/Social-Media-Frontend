@@ -221,7 +221,7 @@ const Sidebar = () => {
     if (!token || !auth.currentUser?.uid) return;
 
     const client = new Client({
-      webSocketFactory: () => new WebSocket("ws://localhost:4000/social/api/message/ws"),
+      webSocketFactory: () => new WebSocket("ws://localhost:4000/api/message/ws"),
       connectHeaders: { Authorization: `Bearer ${token}` },
       debug: (str) => console.log("Message WebSocket Debug:", str),
       reconnectDelay: 5000,
@@ -292,7 +292,7 @@ const Sidebar = () => {
 
     const fetchInitialConversations = async () => {
       try {
-        const response = await fetch("http://localhost:4000/social/api/message/get-all-contact", {
+        const response = await fetch("http://localhost:9191/api/message/get-all-contact", {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -346,15 +346,15 @@ const Sidebar = () => {
                   <div className="w-12 flex justify-center relative">
                     {activeTab === item.title ? item.activeIcon : item.icon}
                     {item.title === "Message" && messageNotificationCount > 0 && (
-                      <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      <span className="absolute top-0 right-[12px] min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center px-1 border border-white">
                         {messageNotificationCount}
                       </span>
                     )}
-                    {item.title === "Notifications" && notificationCount > 0 && (
+                    {/* {item.title === "Notifications" && notificationCount > 0 && (
                       <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                         {notificationCount}
                       </span>
-                    )}
+                    )} */}
                   </div>
                   {!(showSearch || showNotification) && (
                     <p

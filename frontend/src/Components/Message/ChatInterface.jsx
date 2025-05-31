@@ -210,58 +210,62 @@ export default function ChatInterface() {
 
   // Load convert google.daytime
   useEffect(() => {
-    let initialLoad = true;
-    const q = query(collection(db, "conversations"), orderBy("lastUpdate", "desc"), limit(10));
+  if (!currentUser.userId) return; // Đảm bảo currentUser.userId đã được thiết lập
 
-    const unsub = onSnapshot(q, (snapshot) => {
-      const updatedContacts = snapshot.docs.map((doc) => {
-        const data = doc.data();
-        // Xử lý lastUpdate từ Firestore hoặc API
-        let lastUpdateValue;
-        if (data.lastUpdate && typeof data.lastUpdate === "object" && "toDate" in data.lastUpdate) {
-          // Trường hợp từ Firestore (onSnapshot)
-          lastUpdateValue = data.lastUpdate?.toDate?.().getTime() || null;
-        } else {
-          // Trường hợp từ API (đã là mili giây)
-          lastUpdateValue = typeof data.lastUpdate === "number" ? data.lastUpdate : null;
-        }
+  let initialLoad = true;
+  const q = query(
+    collection(db, "conversations"),
+    where("listUser", "array-contains", currentUser.userId), // Lọc theo userId
+    orderBy("lastUpdate", "desc"),
+    limit(10)
+  );
 
-        return {
-          conversationId: doc.id,
-          ...data,
-          lastUpdate: lastUpdateValue,
-          users: data.users || [],
-        };
-      });
-
-      if (initialLoad) {
-        initialLoad = false;
-        setContacts(updatedContacts);
-        setLastConversationSnapshot(snapshot.docs[snapshot.docs.length - 1] || null);
-        return;
+  const unsub = onSnapshot(q, (snapshot) => {
+    const updatedContacts = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      let lastUpdateValue;
+      if (data.lastUpdate && typeof data.lastUpdate === "object" && "toDate" in data.lastUpdate) {
+        lastUpdateValue = data.lastUpdate?.toDate?.().getTime() || null;
+      } else {
+        lastUpdateValue = typeof data.lastUpdate === "number" ? data.lastUpdate : null;
       }
 
-      setContacts((prevContacts) => {
-        const updated = updatedContacts.map((newContact) => {
-          const existingContact = prevContacts.find((c) => c.id === newContact.id);
-          if (existingContact) {
-            return {
-              ...existingContact,
-              ...newContact,
-              unreadCount: newContact.unreadCount || existingContact.unreadCount,
-            };
-          }
-          return newContact;
-        });
-        return updated;
-      });
-      setLastConversationSnapshot(snapshot.docs[snapshot.docs.length - 1] || null);
-    }, (error) => {
-      console.error("Lỗi conversations:", error);
+      return {
+        conversationId: doc.id,
+        ...data,
+        lastUpdate: lastUpdateValue,
+        users: data.users || [],
+      };
     });
 
-    return () => unsub();
-  }, []);
+    if (initialLoad) {
+      initialLoad = false;
+      setContacts(updatedContacts);
+      setLastConversationSnapshot(snapshot.docs[snapshot.docs.length - 1] || null);
+      return;
+    }
+
+    setContacts((prevContacts) => {
+      const updated = updatedContacts.map((newContact) => {
+        const existingContact = prevContacts.find((c) => c.conversationId === newContact.conversationId);
+        if (existingContact) {
+          return {
+            ...existingContact,
+            ...newContact,
+            unreadCount: newContact.unreadCount || existingContact.unreadCount,
+          };
+        }
+        return newContact;
+      });
+      return updated;
+    });
+    setLastConversationSnapshot(snapshot.docs[snapshot.docs.length - 1] || null);
+  }, (error) => {
+    console.error("Lỗi conversations:", error);
+  });
+
+  return () => unsub();
+}, [currentUser.userId]); // Thêm currentUser.userId vào dependency
 
   useEffect(() => {
     if (!messagesEndRef.current || !conversationMessages[activeContact?.conversationId]?.length) return;

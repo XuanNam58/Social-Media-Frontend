@@ -1,6 +1,5 @@
 "use client";
 import { useLocation } from "react-router-dom";
-
 import { db } from "../../firebase/messageFirebase";
 import {
   collection,
@@ -47,6 +46,25 @@ const getToken = async () => {
   return null;
 };
 
+const fetchUserInfo = async (userId, token) => {
+  try {
+    const response = await axios.get(
+      `http://localhost:9191/api/message/get-others-user-info?userId=${userId}`,
+      { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+    );
+    return {
+      fullName: response.data.fullName || "Unknown",
+      avatarUrl: response.data.profilePicURL || "https://via.placeholder.com/40",
+    };
+  } catch (error) {
+    console.error(`Lỗi khi lấy thông tin người dùng ${userId}:`, error);
+    return {
+      fullName: "Unknown",
+      avatarUrl: "https://via.placeholder.com/40",
+    };
+  }
+};
+
 export default function ChatInterface() {
   const { state } = useLocation();
   const [activeContact, setActiveContact] = useState(null);
@@ -62,7 +80,7 @@ export default function ChatInterface() {
   const [lastConversationSnapshot, setLastConversationSnapshot] = useState(null);
   const [firstMessageSnapshot, setFirstMessageSnapshot] = useState(null);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
-  const [targetUserInfo, setTargetUserInfo] = useState(null); // Lưu thông tin người lạ
+  const [targetUserInfo, setTargetUserInfo] = useState(null);
   const { targetUser } = state || {};
   const initialTargetUserId = targetUser?.uid;
 
@@ -81,7 +99,7 @@ export default function ChatInterface() {
         setToken(token);
 
         const { data: contactsData } = await axios.get(
-          "http://localhost:4000/social/api/message/get-all-contact",
+          "http://localhost:9191/api/message/get-all-contact",
           { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
         );
 
@@ -97,7 +115,6 @@ export default function ChatInterface() {
           });
         });
 
-        // Cập nhật userDetails với targetUser nếu chưa có
         if (targetUser && !userMap[targetUser.uid]) {
           userMap[targetUser.uid] = {
             fullName: targetUser.fullName || "Unknown",
@@ -109,9 +126,10 @@ export default function ChatInterface() {
         setContacts(contactsData.slice(0, 10));
 
         const { data: userData } = await axios.get(
-          "http://localhost:4000/social/api/message/get-user",
+          "http://localhost:9191/api/message/get-user",
           { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
         );
+        console.log("userId", userData.userId);
 
         let userInfo = { userId: userData.userId, username: "Unknown", avatar: "https://via.placeholder.com/40" };
         setCurrentUser(userInfo);
@@ -207,22 +225,24 @@ export default function ChatInterface() {
     return () => unsub();
   }, [activeContact?.conversationId, firebaseToken]);
 
-
-  // Load convert google.daytime
   useEffect(() => {
-    let initialLoad = true;
-    const q = query(collection(db, "conversations"), orderBy("lastUpdate", "desc"), limit(10));
+    if (!currentUser.userId) return;
 
-    const unsub = onSnapshot(q, (snapshot) => {
+    let initialLoad = true;
+    const q = query(
+      collection(db, "conversations"),
+      where("listUser", "array-contains", currentUser.userId),
+      orderBy("lastUpdate", "desc"),
+      limit(10)
+    );
+
+    const unsub = onSnapshot(q, async (snapshot) => {
       const updatedContacts = snapshot.docs.map((doc) => {
         const data = doc.data();
-        // Xử lý lastUpdate từ Firestore hoặc API
         let lastUpdateValue;
         if (data.lastUpdate && typeof data.lastUpdate === "object" && "toDate" in data.lastUpdate) {
-          // Trường hợp từ Firestore (onSnapshot)
           lastUpdateValue = data.lastUpdate?.toDate?.().getTime() || null;
         } else {
-          // Trường hợp từ API (đã là mili giây)
           lastUpdateValue = typeof data.lastUpdate === "number" ? data.lastUpdate : null;
         }
 
@@ -234,6 +254,35 @@ export default function ChatInterface() {
         };
       });
 
+      // Cập nhật userDetails cho các userId mới
+      const newUserIds = new Set();
+      updatedContacts.forEach((contact) => {
+        contact.listUser?.forEach((userId) => {
+          if (userId !== currentUser.userId && !userDetails[userId]) {
+            newUserIds.add(userId);
+          }
+        });
+      });
+
+      if (newUserIds.size > 0) {
+        const token = await getToken();
+        if (token) {
+          const userInfoPromises = Array.from(newUserIds).map((userId) =>
+            fetchUserInfo(userId, token)
+          );
+          const userInfos = await Promise.all(userInfoPromises);
+          const newUserDetails = {};
+          Array.from(newUserIds).forEach((userId, index) => {
+            newUserDetails[userId] = userInfos[index];
+          });
+
+          setUserDetails((prev) => ({
+            ...prev,
+            ...newUserDetails,
+          }));
+        }
+      }
+
       if (initialLoad) {
         initialLoad = false;
         setContacts(updatedContacts);
@@ -243,7 +292,7 @@ export default function ChatInterface() {
 
       setContacts((prevContacts) => {
         const updated = updatedContacts.map((newContact) => {
-          const existingContact = prevContacts.find((c) => c.id === newContact.id);
+          const existingContact = prevContacts.find((c) => c.conversationId === newContact.conversationId);
           if (existingContact) {
             return {
               ...existingContact,
@@ -261,7 +310,7 @@ export default function ChatInterface() {
     });
 
     return () => unsub();
-  }, []);
+  }, [currentUser.userId, userDetails]);
 
   useEffect(() => {
     if (!messagesEndRef.current || !conversationMessages[activeContact?.conversationId]?.length) return;
@@ -355,7 +404,7 @@ export default function ChatInterface() {
     setSelectedFiles([]);
 
     let conversationId = activeContact?.conversationId;
-    let updatedContact = { ...activeContact }; // Sao chép activeContact hiện tại
+    let updatedContact = { ...activeContact };
 
     if (!conversationId && targetUserInfo) {
       try {
@@ -366,34 +415,30 @@ export default function ChatInterface() {
         selectedFiles.forEach((file) => formData.append("listMediaFile", file));
 
         const response = await axios.post(
-          "http://localhost:4000/social/api/message/upload",
+          "http://localhost:9191/api/message/upload",
           formData,
           { headers: { Authorization: `Bearer ${firebaseToken}` } }
         );
         conversationId = response.data.conversationId;
 
-        // Cập nhật activeContact với thông tin từ targetUserInfo
         setActiveContact((prev) => ({
           ...prev,
           conversationId,
           name: targetUserInfo.fullName,
           avatarUrl: targetUserInfo.avatarUrl,
         }));
-
-        // Không cần setTargetUserInfo(null), giữ lại cho đến khi cần
       } catch (error) {
         console.error("Gửi tin nhắn thất bại hoặc tạo conversation lỗi:", error);
         return;
       }
     } else if (conversationId) {
-      // Trường hợp cuộc hội thoại đã tồn tại
       const formData = new FormData();
       activeContact.listUser.forEach((userId) => formData.append("list-user", userId));
       formData.append("context", messageInput);
       selectedFiles.forEach((file) => formData.append("listMediaFile", file));
 
       const response = await axios.post(
-        "http://localhost:4000/social/api/message/upload",
+        "http://localhost:9191/api/message/upload",
         formData,
         {
           headers: {
@@ -402,7 +447,6 @@ export default function ChatInterface() {
         }
       );
 
-      // Lấy thông tin cuộc hội thoại mới nhất từ server hoặc Firestore
       const conversationDoc = await getDoc(doc(db, "conversations", conversationId));
       if (conversationDoc.exists()) {
         const conversationData = conversationDoc.data();
@@ -414,7 +458,6 @@ export default function ChatInterface() {
         };
         setActiveContact(updatedContact);
 
-        // Cập nhật danh sách contacts để đồng bộ
         setContacts((prev) =>
           prev.map((contact) =>
             contact.conversationId === conversationId
@@ -438,19 +481,47 @@ export default function ChatInterface() {
   };
 
   const handleConversationClick = async (contact) => {
+    if (!contact || !contact.conversationId) {
+      console.warn("Invalid contact data:", contact);
+      return;
+    }
+
     setActiveContact(contact);
     const conversationId = contact.conversationId;
+
     try {
+      // Khởi tạo dữ liệu tin nhắn ngay lập tức
+      const q = query(
+        collection(db, "messages"),
+        where("conversationId", "==", conversationId),
+        orderBy("timestamp", "desc"),
+        limit(20)
+      );
+      const snapshot = await getDocs(q);
+      const initialMessages = snapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+          timestamp: doc.data().timestamp?.toDate?.().getTime() || null,
+        }))
+        .reverse();
+
+      setConversationMessages((prev) => ({
+        ...prev,
+        [conversationId]: initialMessages,
+      }));
+      setFirstMessageSnapshot(snapshot.docs[snapshot.docs.length - 1] || null);
+      setHasMoreMessages(snapshot.docs.length === 20);
+
       const unreadCount = await getUnreadCount(conversationId, currentUser.userId);
       console.log("Unread count before update:", unreadCount);
       if (unreadCount > 0) {
         await updateReadByStatus(conversationId, unreadCount);
-        const updatedContacts = await fetchUpdatedContacts();
-        setContacts(updatedContacts);
       }
     } catch (err) {
-      console.error("Lỗi cập nhật trạng thái:", err);
+      console.error("Lỗi khi xử lý cuộc trò chuyện:", err);
     }
+
     shouldAutoScrollRef.current = true;
     setHasMoreMessages(true);
   };
@@ -463,7 +534,7 @@ export default function ChatInterface() {
   const updateReadByStatus = async (conversationId, unreadCount) => {
     if (unreadCount <= 0) return;
     await axios.post(
-      "http://localhost:4000/social/api/message/update-unread",
+      "http://localhost:9191/api/message/update-unread",
       { conversationId, unreadCount },
       {
         headers: {
@@ -478,7 +549,7 @@ export default function ChatInterface() {
     const token = await getToken();
     if (!token) return [];
     const { data: contactsData } = await axios.get(
-      "http://localhost:4000/social/api/message/get-all-contact",
+      "http://localhost:9191/api/message/get-all-contact",
       { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
     );
     return contactsData.slice(0, 10);
@@ -582,11 +653,11 @@ export default function ChatInterface() {
                 <img
                   src={
                     activeContact?.conversationId
-                      ? activeContact.avatarUrl || // Ưu tiên avatar từ activeContact
-                      (activeContact.listUser?.length >= 3
-                        ? activeContact.avatarUrl || "https://via.placeholder.com/40"
-                        : userDetails[activeContact.listUser?.find((id) => id !== currentUser.userId)]?.avatarUrl ||
-                        "https://via.placeholder.com/40")
+                      ? activeContact.avatarUrl ||
+                        (activeContact.listUser?.length >= 3
+                          ? activeContact.avatarUrl || "https://via.placeholder.com/40"
+                          : userDetails[activeContact.listUser?.find((id) => id !== currentUser.userId)]?.avatarUrl ||
+                            "https://via.placeholder.com/40")
                       : targetUserInfo?.avatarUrl || "https://via.placeholder.com/40"
                   }
                   alt="Contact avatar"
@@ -624,10 +695,10 @@ export default function ChatInterface() {
                 const sender = isUser
                   ? currentUser
                   : userDetails[msg.sender] || {
-                    id: msg.sender,
-                    fullName: "Unknown User",
-                    avatarUrl: "https://via.placeholder.com/40",
-                  };
+                      id: msg.sender,
+                      fullName: "Unknown User",
+                      avatarUrl: "https://via.placeholder.com/40",
+                    };
                 return (
                   <div
                     key={msg.id || idx}
@@ -650,7 +721,6 @@ export default function ChatInterface() {
                           isUser ? "bg-gray-300 text-black" : "bg-gray-100 text-gray-800"
                         )}
                       >
-                        {/* Hiển thị nhiều ảnh nếu msg.media là mảng */}
                         {msg.media &&
                           (Array.isArray(msg.media) ? (
                             msg.media.map((mediaUrl, index) => (

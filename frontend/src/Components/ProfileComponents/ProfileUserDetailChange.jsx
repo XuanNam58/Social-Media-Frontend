@@ -64,6 +64,11 @@ const ProfileUserDetailChange = ({
   const [userProfile, setUserProfile] = useState(userParam);
   const navigate = useNavigate(); // Thêm useNavigate để điều hướng
 
+  // Add useEffect to update userProfile when userParam changes
+  useEffect(() => {
+    setUserProfile(userParam);
+  }, [userParam]);
+
   // State cho form chỉnh sửa
   const [editFullName, setEditFullName] = useState(userParam.fullName || "");
   const [editBio, setEditBio] = useState(userParam.bio || "");

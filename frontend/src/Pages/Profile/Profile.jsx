@@ -154,11 +154,10 @@ const Profile = () => {
       setIsFollowing(true);
 
       // Force a re-fetch of user data for both users
-      if (username === user.reqUser.result.username) {
-        await dispatch(getUserProfileAction(token));
-      } else {
-        await dispatch(getUserByUsernameAction(username, token));
-      }
+      await Promise.all([
+        dispatch(getUserProfileAction(token)),
+        dispatch(getUserByUsernameAction(username, token))
+      ]);
     } catch (error) {
       console.log("Error following user:", error);
       setError("Error following user");
@@ -183,11 +182,10 @@ const Profile = () => {
       setIsFollowing(false);
 
       // Force a re-fetch of user data for both users
-      if (username === user.reqUser.result.username) {
-        await dispatch(getUserProfileAction(token));
-      } else {
-        await dispatch(getUserByUsernameAction(username, token));
-      }
+      await Promise.all([
+        dispatch(getUserProfileAction(token)),
+        dispatch(getUserByUsernameAction(username, token))
+      ]);
     } catch (error) {
       console.log("Error unfollowing user:", error);
       setError("Error unfollowing user");
